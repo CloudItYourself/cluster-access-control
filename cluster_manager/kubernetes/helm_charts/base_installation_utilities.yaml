@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+ name: monitoring
+ labels:
+   name: monitoring
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  repo: https://prometheus-community.github.io/helm-charts
+  chart: prometheus
+  targetNamespace: monitoring
+  version: 25.8.2
+  helmVersion: v3
