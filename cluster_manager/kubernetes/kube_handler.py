@@ -10,11 +10,8 @@ import time
 from typing import Final, Dict, Optional
 
 import kubernetes
-from kubernetes import client, watch, utils
+from kubernetes import client
 from kubernetes.client import ApiException
-from kubernetes.utils import FailToCreateError
-
-from cluster_manager.kubernetes.kube_utility_installation_functions import install_k3s
 from cluster_manager.utilities.messages import PodDetails, NamespaceDetails
 
 
@@ -22,56 +19,15 @@ class KubeHandler:
     POD_MAX_STARTUP_TIME_IN_MINUTES: Final[int] = 6
     POD_DELETION_TIME_IN_MINUTES: Final[int] = 1
     K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 360
-    RELEVANT_CONFIG_FILE = '/etc/rancher/k3s/k3s.yaml' if sys.platform == 'linux' else f"{os.environ['USERPROFILE']}\\.kube\\config"
-    PROMETHEUS_HELM_CHART_PATH: pathlib.Path = pathlib.Path(__file__).parent / 'helm_charts' / 'base_installation_utilities.yaml'
+
     def __init__(self):
         self._kube_ready = False
         self._kube_client: Optional[kubernetes.client.CoreV1Api] = None
-        self.prepare_kubernetes()
 
     @staticmethod
     def generate_random_string(length: int) -> str:
         letters = string.ascii_lowercase
         return ''.join(random.choice(letters) for i in range(length))
-
-    @property
-    def kube_ready(self) -> bool:
-        return self._kube_ready
-
-    def _install_kube_env(self) -> bool:
-        if install_k3s() and os.system('kubectl --help') == 0:
-            kubernetes.config.load_kube_config(config_file=KubeHandler.RELEVANT_CONFIG_FILE)
-            self._kube_client = kubernetes.client.CoreV1Api()
-            try:
-                utils.create_from_yaml(self._kube_client, KubeHandler.PROMETHEUS_HELM_CHART_PATH)
-            except FailToCreateError:
-                logging.exception(f"Failed to install prometheus")
-                return False
-        else:
-            logging.error("Failed to install k3s")
-            return False
-
-    def reinstall_k3s(self) -> bool:
-        os.system('/usr/local/bin/k3s-uninstall.sh')
-        return self._install_kube_env()
-
-    def prepare_kubernetes(self) -> bool:
-        if not os.system('kubectl --help') == 0:
-            self._install_kube_env()
-
-        kubernetes.config.load_kube_config(config_file=KubeHandler.RELEVANT_CONFIG_FILE)
-        self._kube_client = kubernetes.client.CoreV1Api()
-        print(f"Waiting for metrics server")
-        kube_initialized = self.wait_for_metrics_server_to_start()
-        print(f"Kube initialized: {kube_initialized}")
-        if not kube_initialized:  # this is some wacky case
-            self.reinstall_k3s()
-            kubernetes.config.load_kube_config(config_file=KubeHandler.RELEVANT_CONFIG_FILE)
-            self._kube_client = kubernetes.client.CoreV1Api()
-            self._kube_ready = self.wait_for_metrics_server_to_start()
-            return self._kube_ready
-        else:
-            return True
 
     def verify_pod_successful_startup(self, pod_name: str, namespace: str) -> bool:
         start_time = time.time()
@@ -165,7 +121,7 @@ class KubeHandler:
         try:
             namespace_item_details = []
             custom_object_api = client.CustomObjectsApi()
-            resp = custom_object_api.list_cluster_custom_object('custom.metrics.k8s.io/v1beta1', 'v1', 'pods')
+            resp = custom_object_api.list_cluster_custom_object('metrics.k8s.io', 'v1beta1', 'pods')
             for item in resp['items']:
                 if item['metadata']['namespace'] == namespace:
                     current_metrics = PodDetails(pod_name=item['metadata']['name'],
@@ -177,17 +133,6 @@ class KubeHandler:
         except ApiException as e:
             logging.error(f"Exception when calling CoreV1Api->list_cluster_custom_object: {e}")
             return None
-
-    def wait_for_metrics_server_to_start(self):
-        start = time.time()
-        while time.time() - start < KubeHandler.K3S_MAX_STARTUP_TIME_IN_SECONDS:
-            try:
-                if self.get_namespace_details('kube-system') is not None:
-                    return True
-            except Exception as e:
-                time.sleep(0.5)
-                pass
-        return False
 
     def pre_load_pod(self, image_name: str, version: str, namespace: str, url: str, user: str, access_key: str) -> bool:
         secret_name = f'{namespace}-{user}'
@@ -273,6 +218,7 @@ class KubeHandler:
             app_api.delete_namespaced_daemon_set(ds_name, namespace)
         except ApiException as e:
             pass
+
 
 if __name__ == '__main__':
     xd = KubeHandler()
