@@ -1,28 +1,20 @@
-import platform
-import sys
-
 import uvicorn
 from fastapi import FastAPI
 
-import subprocess
-import os
-
+from cluster_manager.web_app.cluster_access import ClusterAccess
 from cluster_manager.web_app.node import NodeRegistrar
+from cluster_manager.web_app.temporary_deployment import TemporaryDeployment
 
 
 def main():
-    print("=" * 40, "System Information", "=" * 40)
-    uname = platform.uname()
-    print(f"System: {uname.system}")
-    print(f"Node Name: {uname.node}")
-    print(f"Release: {uname.release}")
-    print(f"Version: {uname.version}")
-    print(f"Machine: {uname.machine}")
-    print(f"Processor: {uname.processor}")
-
     app = FastAPI()
     node_api = NodeRegistrar()
+    cluster_access_api = ClusterAccess()
+    temporary_registration_api = TemporaryDeployment()
     app.include_router(node_api.router)
+    app.include_router(cluster_access_api.router)
+    app.include_router(temporary_registration_api.router)
+
     uvicorn.run(app, host='0.0.0.0', port=8080)
 
 

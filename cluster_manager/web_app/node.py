@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from starlette.exceptions import HTTPException
 
 from cluster_manager.api_messages.v1.node_registrar import NodeDetails, RegistrationDetails
+from cluster_manager.utilities.environment import ClusterAccessConfiguration
 
 
 class NodeRegistrar:
@@ -12,6 +13,7 @@ class NodeRegistrar:
 
     def __init__(self):
         self.router = APIRouter()
+        self._environment = ClusterAccessConfiguration()
         self.router.add_api_route("/api/v1/node_token", self.request_token, methods=["POST"])
         self._registered_nodes = dict()
 
@@ -24,9 +26,9 @@ class NodeRegistrar:
             )
         # TODO: generate token and respond with details
         self._registered_nodes[node_details] = time.time()
-        return RegistrationDetails(k8s_ip="127.0.0.1",
-                                   k8s_port=6443,
-                                   k8s_token="abcdef",
-                                   vpn_ip="127.0.0.1",
-                                   vpn_port=30000,
-                                   vpn_token="abdasdasdsa")
+        return RegistrationDetails(k8s_ip=self._environment.get_cluster_host(),
+                                   k8s_port=ClusterAccessConfiguration.CLUSTER_PORT,
+                                   k8s_token=self._environment.get_kubernetes_api_join_key(),
+                                   vpn_ip=self._environment.get_cluster_host(),
+                                   vpn_port=ClusterAccessConfiguration.VPN_PORT,
+                                   vpn_token=self._environment.get_vpn_join_token_key())
