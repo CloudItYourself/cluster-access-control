@@ -1,11 +1,9 @@
 import base64
 import json
 import logging
-import pathlib
 import string
 import random
 import time
-from tempfile import TemporaryDirectory
 from typing import Final, Dict, Optional
 
 import kubernetes
