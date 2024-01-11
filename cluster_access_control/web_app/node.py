@@ -4,8 +4,8 @@ from typing import Final, Union
 from fastapi import APIRouter
 from starlette.exceptions import HTTPException
 
-from cluster_manager.api_messages.v1.node_registrar import NodeDetails, RegistrationDetails
-from cluster_manager.utilities.environment import ClusterAccessConfiguration
+from cluster_access_control.api_messages.v1.node_registrar import NodeDetails, RegistrationDetails
+from cluster_access_control.utilities.environment import ClusterAccessConfiguration
 
 
 class NodeRegistrar:

@@ -1,7 +1,6 @@
 import os
 from typing import Final
-
-import requests
+import aiohttp
 
 
 class ClusterAccessConfiguration:
@@ -30,15 +29,18 @@ class ClusterAccessConfiguration:
     def get_node_join_token(self) -> str:
         return self._node_join_token
 
-    def get_vpn_join_token_key(self) -> str:
+    async def get_vpn_join_token_key(self) -> str:
         headers = {
             'Authorization': f'Bearer {self._vpn_api_key}'
         }
         body = {
             'user': self.VPN_USER
         }
-        return requests.post(f'http://{self._cluster_host}:{self.VPN_PORT}/api/v1/preauthkey', headers=headers,
-                             json=body).json()['key']
+        async with aiohttp.ClientSession() as session:
+            response = await session.post(url="https://httpbin.org/post",
+                                          data=body,
+                                          headers=headers)
+            return (await response.json())['key']
 
     def get_node_access_token(self) -> str:
         return self._node_access_token

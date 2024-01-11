@@ -10,8 +10,8 @@ import kubernetes
 from kubernetes import client
 from kubernetes.client import ApiException
 
-from cluster_manager.utilities.environment import ClusterAccessConfiguration
-from cluster_manager.utilities.messages import PodDetails, NamespaceDetails
+from cluster_access_control.utilities.environment import ClusterAccessConfiguration
+from cluster_access_control.utilities.messages import PodDetails, NamespaceDetails
 
 
 class KubeHandler:
@@ -139,7 +139,7 @@ class KubeHandler:
             logging.error(f"Exception when calling CoreV1Api->list_cluster_custom_object: {e}")
             return None
 
-    def pre_load_pod(self, image_name: str, version: str, namespace: str, url: str, user: str, access_key: str) -> bool:
+    def pre_load_image(self, image_name: str, version: str, namespace: str, url: str, user: str, access_key: str) -> bool:
         secret_name = f'{namespace}-{user}'
         app_name = f'{namespace}-{image_name.split("/")[-1]}-prepuller'
         ds_name = f'{namespace}-{image_name.split("/")[-1]}-ds'
