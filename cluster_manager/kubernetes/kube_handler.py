@@ -1,14 +1,18 @@
 import base64
 import json
 import logging
+import pathlib
 import string
 import random
 import time
+from tempfile import TemporaryDirectory
 from typing import Final, Dict, Optional
 
 import kubernetes
 from kubernetes import client
 from kubernetes.client import ApiException
+
+from cluster_manager.utilities.environment import ClusterAccessConfiguration
 from cluster_manager.utilities.messages import PodDetails, NamespaceDetails
 
 
@@ -18,8 +22,14 @@ class KubeHandler:
     K3S_MAX_STARTUP_TIME_IN_SECONDS: Final[int] = 360
 
     def __init__(self):
-        self._kube_ready = False
-        self._kube_client: Optional[kubernetes.client.CoreV1Api] = None
+        self._environment = ClusterAccessConfiguration()
+
+        configuration = client.Configuration()
+        configuration.cert_file = self._environment.get_kubernetes_cert()
+        configuration.key_file = self._environment.get_kubernetes_key()
+        configuration.host = f'https://{self._environment.get_cluster_host()}:{ClusterAccessConfiguration.CLUSTER_PORT}'
+
+        self._kube_client = client.CoreV1Api(client.ApiClient(configuration))
 
     @staticmethod
     def generate_random_string(length: int) -> str:
