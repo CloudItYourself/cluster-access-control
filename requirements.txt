@@ -4,3 +4,4 @@ pydantic
 fastapi[all]
 uvicorn
 aiohttp
+tpc_backend_libraries
