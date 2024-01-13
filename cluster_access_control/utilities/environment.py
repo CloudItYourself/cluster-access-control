@@ -14,8 +14,8 @@ class ClusterAccessConfiguration:
         self._kubernetes_key = os.environ['KUBERNETES_KEY']
         self._vpn_api_key = os.environ['VPN_API_KEY']
         self._node_access_token = os.environ['K3S_NODE_TOKEN']
-
         self._node_join_token = os.environ['K3S_NODE_TOKEN']
+        self._redis_url = os.environ['REDIS_URL']
 
     def get_cluster_host(self) -> str:
         return self._cluster_host
@@ -44,3 +44,6 @@ class ClusterAccessConfiguration:
 
     def get_node_access_token(self) -> str:
         return self._node_access_token
+
+    def get_redis_url(self) -> str:
+        return self._redis_url

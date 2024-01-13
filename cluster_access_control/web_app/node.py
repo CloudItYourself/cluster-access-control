@@ -3,7 +3,7 @@ from typing import Final, Union
 
 from fastapi import APIRouter
 from starlette.exceptions import HTTPException
-from tpc_backend_libraries.api_messages.v1.node_registrar import NodeDetails, RegistrationDetails
+from tpc_backend_libraries.api.cluster_access.v1.node_registrar import NodeDetails, RegistrationDetails
 from cluster_access_control.utilities.environment import ClusterAccessConfiguration
 
 
