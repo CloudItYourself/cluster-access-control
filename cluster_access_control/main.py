@@ -19,8 +19,8 @@ def main():
     app.include_router(node_api.router)
     app.include_router(cluster_access_api.router)
 
-    uvicorn.run(app, host='0.0.0.0', port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
