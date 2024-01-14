@@ -22,7 +22,7 @@ class NodeRegistrar:
             "/api/v1/node_token", self.request_token, methods=["POST"]
         )
         self.router.add_api_route(
-            "/api/v1/node_keepalive/{node_id}",
+            "/api/v1/node_keepalive",
             self.node_keepalive_message,
             methods=["PUT"],
         )
@@ -38,7 +38,7 @@ class NodeRegistrar:
                 status_code=429,
                 detail=f"Error! node with name: {node_details.name} and id: {node_details.id} was registered lately",
             )
-        # TODO: generate token and respond with details
+
         self._registered_nodes[node_details] = time.time()
         return RegistrationDetails(
             k8s_ip=self._environment.get_cluster_host(),
@@ -49,5 +49,5 @@ class NodeRegistrar:
             vpn_token=self._environment.get_vpn_join_token_key(),
         )
 
-    def node_keepalive_message(self, node_id: str):
-        self._node_cleaner.update_node_keepalive(node_id)
+    def node_keepalive_message(self, node_details: NodeDetails):
+        self._node_cleaner.update_node_keepalive(str(hash(node_details)))
