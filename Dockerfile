@@ -3,6 +3,7 @@ FROM registry.gitlab.com/ronen48/ciy/python-311:latest
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
+RUN apt-get install -y python-keyring libdbus-glib-1-dev
 RUN pip3 install keyring
 RUN echo "glpat-3zqVQwKxwU_Qsvc_8fw8" | keyring set https://gitlab.com/api/v4/projects/54080196/packages/pypi ci-python-package-user
 
