@@ -1,0 +1,24 @@
+name: Build base python docker images
+run-name: ${{ github.actor }}
+on: [ push ]
+jobs:
+  build-docker-image-and-push:
+    runs-on: self-hosted
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Log in to gitlab hub
+        uses: docker/login-action@v1
+        with:
+          registry: registry.gitlab.com/ronen48/ciy
+          username: ronen
+          password: glpat-MUekjoxQDubT9QoHyuEx
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: registry.gitlab.com/ronen48/ciy/cluster-access-control:latest
+          no-cache: true

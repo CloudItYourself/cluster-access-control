@@ -4,7 +4,7 @@ from cluster_access_control.node_cleaner.node_cleaner import NodeCleaner
 
 from fastapi import APIRouter
 from starlette.exceptions import HTTPException
-from tpc_backend_libraries.api.cluster_access.v1.node_registrar import (
+from ciy_backend_libraries.api.cluster_access.v1.node_registrar import (
     NodeDetails,
     RegistrationDetails,
 )

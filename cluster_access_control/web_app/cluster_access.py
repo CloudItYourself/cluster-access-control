@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from cluster_access_control.utilities.environment import ClusterAccessConfiguration
-from tpc_backend_libraries.api.cluster_access.v1.kubernetes_access import (
+from ciy_backend_libraries.api.cluster_access.v1.kubernetes_access import (
     KubernetesAccessResponse,
 )
 
