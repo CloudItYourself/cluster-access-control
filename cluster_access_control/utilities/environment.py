@@ -25,7 +25,7 @@ class ClusterAccessConfiguration:
         self._kubernetes_config_file.write_text(
             base64.b64decode(configurations['kubernetes-config-file']).decode('utf-8'))
         self._node_access_token = configurations["k3s-node-token"]
-        self._redis_url = f'redis://{os.environ["REDIS_PASSWORD"]}@{os.environ["REDIS_URL"]}/'
+        self._redis_url = f'redis://{os.environ["REDIS_PASSWORD"]}@{os.environ["REDIS_IP"]}/'
 
     def get_cluster_host(self) -> str:
         return self._cluster_host

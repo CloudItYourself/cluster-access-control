@@ -30,7 +30,7 @@ spec:
         env:
           - name: CONFIGURATIONS
             value: "/etc/cloud-iy-details"
-          - name: REDIS_URL
+          - name: REDIS_IP
             value: redis-service.cloud-iy.svc.cluster.local
           - name: REDIS_PASSWORD
             valueFrom:
