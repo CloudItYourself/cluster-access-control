@@ -10,4 +10,4 @@ RUN chmod -R +777 /tmp
 
 EXPOSE 8080
 
-ENTRYPOINT python3 ./cluster_access_control/main.py
+ENTRYPOINT python3.11 ./cluster_access_control/main.py
