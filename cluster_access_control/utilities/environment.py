@@ -1,5 +1,7 @@
+import base64
 import os
 import pathlib
+import tempfile
 from typing import Final
 import aiohttp
 import yaml
@@ -9,21 +11,27 @@ class ClusterAccessConfiguration:
     CLUSTER_PORT: Final[int] = 6443
     VPN_PORT: Final[int] = 30000
     VPN_USER: Final[str] = "cluster-user"
+    TEMPORARY_DIRECTORY = tempfile.TemporaryDirectory()
+    KUBE_CONFIG_FILE_NAME: Final[str] = "kubeconfig.yaml"
 
     def __init__(self):
-        self._cluster_host = os.environ["CLUSTER_HOST"]
-        self._kubernetes_config_file = pathlib.Path(os.environ["KUBERNETES_CONFIG"])
-        with self._kubernetes_config_file.open("r") as file:
-            prime_service = yaml.safe_load(file)
-        self._vpn_api_key = os.environ["VPN_API_KEY"]
-        self._node_access_token = os.environ["K3S_NODE_TOKEN"]
-        self._redis_url = os.environ["REDIS_URL"]
+        with pathlib.Path(os.environ["KUBERNETES_CONFIG"]).open("r") as file:
+            configurations = yaml.safe_load(file)
+        self._cluster_host = configurations["host-source-dns-name"]
+        self._vpn_api_key = configurations["vpn-token"]
+
+        self._kubernetes_config_file = pathlib.Path(
+            ClusterAccessConfiguration.TEMPORARY_DIRECTORY.name) / ClusterAccessConfiguration.KUBE_CONFIG_FILE_NAME
+        self._kubernetes_config_file.write_text(
+            base64.b64decode(configurations['kubernetes-config-file']).decode('utf-8'))
+        self._node_access_token = configurations["k3s-node-token"]
+        self._redis_url = f'redis://{os.environ["REDIS_PASSWORD"]}@{os.environ["REDIS_URL"]}/'
 
     def get_cluster_host(self) -> str:
         return self._cluster_host
 
     def get_kubernetes_config_file(self) -> str:
-        return self._kubernetes_config_file
+        return str(self._kubernetes_config_file.absolute())
 
     async def get_vpn_join_token_key(self) -> str:
         headers = {"Authorization": f"Bearer {self._vpn_api_key}"}
