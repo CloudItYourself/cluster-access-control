@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: my-deployment
+ namespace: cloud-iy
+spec:
+ replicas: 2
+ selector:
+    matchLabels:
+      app: cluster-access-control
+ template:
+    metadata:
+      labels:
+        app: cluster-access-control
+    spec:
+      volumes:
+        - name: cloud-iy-details
+          secret:
+            secretName: cloudiy-server-details
+      imagePullSecrets:
+        -name: cloudiy-server-details
+      restartPolicy: Always
+      containers:
+      - name: cluster-access-control
+        image: registry.gitlab.com/ronen48/ciy/cluster-access-control:latest
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+          - name: cloud-iy-details
+            readOnly: true
+            mountPath: "/etc/cloud-iy-details"
+        env:
+          - name: CONFIGURATIONS
+            value: "/etc/cloud-iy-details"
+

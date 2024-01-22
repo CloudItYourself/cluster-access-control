@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Final
 
+import kubernetes
 from kubernetes import client
 from kubernetes.client import V1Eviction
 from redis import Redis
@@ -27,13 +28,9 @@ class NodeCleaner:
         )
         self._lock = Lock()
         self._thread_pool = ThreadPoolExecutor()
+        kubernetes.config.load_kube_config(config_file=self._environment.get_kubernetes_config_file())
 
-        configuration = client.Configuration()
-        configuration.cert_file = self._environment.get_kubernetes_cert()
-        configuration.key_file = self._environment.get_kubernetes_key()
-        configuration.host = f"https://{self._environment.get_cluster_host()}:{ClusterAccessConfiguration.CLUSTER_PORT}"
-
-        self._kube_client = client.CoreV1Api(client.ApiClient(configuration))
+        self._kube_client = client.CoreV1Api(client.ApiClient())
 
     def update_node_keepalive(self, node_name: str):
         with self._redlock:
@@ -47,28 +44,29 @@ class NodeCleaner:
                 nodes = self._kube_client.list_node().items
 
             for node in nodes:
-                node_name = node.metadata.name
-                with self._redlock:
-                    node_exists = node_name in self._keepalive_nodes_dict
+                if 'ciy.persistent_node' not in node.metadata.labels:
+                    node_name = node.metadata.name
+                    with self._redlock:
+                        node_exists = node_name in self._keepalive_nodes_dict
 
-                if not node_exists:
-                    time.sleep(
-                        self.NODE_TIMEOUT_IN_SECONDS
-                    )  # allow for a timeout between node connection and keepalive
+                    if not node_exists:
+                        time.sleep(
+                            self.NODE_TIMEOUT_IN_SECONDS
+                        )  # allow for a timeout between node connection and keepalive
 
-                with self._redlock:
-                    if (
-                        node not in self._keepalive_nodes_dict
-                        or datetime.utcnow().timestamp()
-                        - self._keepalive_nodes_dict[node_name]
-                        > self.NODE_TIMEOUT_IN_SECONDS
-                    ):
-                        self._keepalive_nodes_dict.pop(node_name, None)
-                        self._thread_pool.submit(
-                            self.clean_up_node,
-                            node_name,
-                            node.status.conditions[-1].type == "Ready",
-                        )
+                    with self._redlock:
+                        if (
+                            node not in self._keepalive_nodes_dict
+                            or datetime.utcnow().timestamp()
+                            - self._keepalive_nodes_dict[node_name]
+                            > self.NODE_TIMEOUT_IN_SECONDS
+                        ):
+                            self._keepalive_nodes_dict.pop(node_name, None)
+                            self._thread_pool.submit(
+                                self.clean_up_node,
+                                node_name,
+                                node.status.conditions[-1].type == "Ready",
+                            )
 
     def cordon_and_drain(self, node_name: str):
         body = {
