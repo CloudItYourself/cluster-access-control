@@ -16,19 +16,14 @@ class ClusterAccessConfiguration:
     KUBE_CONFIG_FILE_NAME: Final[str] = "kubeconfig.yaml"
 
     def __init__(self):
-        while True:
-            time.sleep(1)
-        print(f"XD::::::::: {list(pathlib.Path(os.environ['KUBERNETES_CONFIG']).rglob('*'))}")
-        with pathlib.Path(os.environ["KUBERNETES_CONFIG"]).open("r") as file:
-            configurations = yaml.safe_load(file)
-        self._cluster_host = configurations["host-source-dns-name"]
-        self._vpn_api_key = configurations["vpn-token"]
+        self._cluster_host = (pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "host-source-dns-name").read_text()
+        self._vpn_api_key = (pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "vpn-token").read_text()
 
         self._kubernetes_config_file = pathlib.Path(
             ClusterAccessConfiguration.TEMPORARY_DIRECTORY.name) / ClusterAccessConfiguration.KUBE_CONFIG_FILE_NAME
         self._kubernetes_config_file.write_text(
-            base64.b64decode(configurations['kubernetes-config-file']).decode('utf-8'))
-        self._node_access_token = configurations["k3s-node-token"]
+            base64.b64decode((pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "kubernetes-config-file").read_text()).decode('utf-8'))
+        self._node_access_token = (pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "k3s-node-token").read_text()
         self._redis_url = f'redis://{os.environ["REDIS_PASSWORD"]}@{os.environ["REDIS_IP"]}/'
 
     def get_cluster_host(self) -> str:
