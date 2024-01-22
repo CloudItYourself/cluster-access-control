@@ -46,7 +46,7 @@ class NodeRegistrar:
             k8s_token=self._environment.get_node_access_token(),
             vpn_ip=self._environment.get_cluster_host(),
             vpn_port=ClusterAccessConfiguration.VPN_PORT,
-            vpn_token=self._environment.get_vpn_join_token_key(),
+            vpn_token=await self._environment.get_vpn_join_token_key(),
         )
 
     def node_keepalive_message(self, node_details: NodeDetails):
