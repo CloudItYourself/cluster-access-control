@@ -28,7 +28,7 @@ spec:
             readOnly: true
             mountPath: "/etc/cloud-iy-details"
         env:
-          - name: CONFIGURATIONS
+          - name: KUBERNETES_CONFIG
             value: "/etc/cloud-iy-details"
           - name: REDIS_IP
             value: redis-service.cloud-iy.svc.cluster.local

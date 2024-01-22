@@ -15,6 +15,7 @@ class ClusterAccessConfiguration:
     KUBE_CONFIG_FILE_NAME: Final[str] = "kubeconfig.yaml"
 
     def __init__(self):
+        print(f"XD::::::::: {list(pathlib.Path(os.environ['KUBERNETES_CONFIG']).rglob("*"))}")
         with pathlib.Path(os.environ["KUBERNETES_CONFIG"]).open("r") as file:
             configurations = yaml.safe_load(file)
         self._cluster_host = configurations["host-source-dns-name"]
