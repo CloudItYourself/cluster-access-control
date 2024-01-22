@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
- name: my-deployment
+ name: cluster-access-control
  namespace: cloud-iy
 spec:
  replicas: 2
@@ -17,8 +17,6 @@ spec:
         - name: cloud-iy-details
           secret:
             secretName: cloudiy-server-details
-      imagePullSecrets:
-        -name: cloudiy-server-details
       restartPolicy: Always
       containers:
       - name: cluster-access-control
@@ -39,6 +37,9 @@ spec:
               secretKeyRef:
                 name: redis-pwd
                 key: redis-pwd
+      imagePullSecrets:
+        - name: cloud-iy-credentials
+
 ---
 apiVersion: v1
 kind: Service
@@ -59,7 +60,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: cluster-access-control-ingress
-  namespace: kube-system
+  namespace: cloud-iy
   annotations:
     spec.ingressClassName: traefik
 spec:
