@@ -40,7 +40,7 @@ class ClusterAccessConfiguration:
             response = await session.get(
                 url=f"http://{self._cluster_host}:{self.VPN_PORT}/api/v1/preauthkey?user={self.VPN_USER}", headers=headers
             )
-            return (await response.json())["preAuthKeys"][0]["key"]
+            return (await response.json())["preAuthKeys"][-1]["key"]
 
     def get_node_access_token(self) -> str:
         return self._node_access_token
