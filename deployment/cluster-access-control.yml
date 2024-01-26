@@ -63,6 +63,9 @@ metadata:
   namespace: cloud-iy
   annotations:
     spec.ingressClassName: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
+
 spec:
   rules:
     - host: cluster-access.ronenv96.cloud-iy.com
@@ -75,3 +78,7 @@ spec:
                 name: cluster-access-control-service
                 port:
                   number: 8080
+  tls:
+    - secretName: cluster-access-tls
+      hosts:
+        - cluster-access.ronenv96.cloud-iy.com
