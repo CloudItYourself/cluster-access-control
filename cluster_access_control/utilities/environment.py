@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import os
 import pathlib
@@ -22,7 +23,8 @@ class ClusterAccessConfiguration:
         self._kubernetes_config_file = pathlib.Path(
             ClusterAccessConfiguration.TEMPORARY_DIRECTORY.name) / ClusterAccessConfiguration.KUBE_CONFIG_FILE_NAME
         self._kubernetes_config_file.write_text(
-            base64.b64decode((pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "kubernetes-config-file").read_text()).decode('utf-8'))
+            base64.b64decode(
+                (pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "kubernetes-config-file").read_text()).decode('utf-8'))
         self._node_access_token = (pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "k3s-node-token").read_text()
         self._redis_url = f'redis://:{os.environ["REDIS_PASSWORD"]}@{os.environ["REDIS_IP"]}/'
 
@@ -34,15 +36,15 @@ class ClusterAccessConfiguration:
 
     async def get_vpn_join_token_key(self) -> str:
         headers = {"Authorization": f"Bearer {self._vpn_api_key}"}
-        body = {"user": self.VPN_USER}
         async with aiohttp.ClientSession() as session:
-            response = await session.post(
-                url="https://httpbin.org/post", data=body, headers=headers
+            response = await session.get(
+                url=f"http://{self._cluster_host}:{self.VPN_PORT}/api/v1/preauthkey?user={self.VPN_USER}", headers=headers
             )
-            return (await response.json())["key"]
+            return (await response.json())["preAuthKeys"][0]["key"]
 
     def get_node_access_token(self) -> str:
         return self._node_access_token
 
     def get_redis_url(self) -> str:
         return self._redis_url
+
