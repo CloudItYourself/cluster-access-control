@@ -64,8 +64,7 @@ class ClusterAccessConfiguration:
             "user": self.VPN_USER,
             "reusable": False,
             "ephemeral": False,
-            "expiration": ClusterAccessConfiguration.get_time_for_pre_auth(),
-            "aclTags": ["string"],
+            "expiration": ClusterAccessConfiguration.get_time_for_pre_auth()
         }
         async with aiohttp.ClientSession() as session:
             response = await session.post(
