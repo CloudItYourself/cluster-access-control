@@ -41,42 +41,44 @@ class NodeCleaner:
     def delete_stale_nodes(self):
         while True:
             time.sleep(self.NODE_TIMEOUT_IN_SECONDS)
+            try:
+                with self._lock:
+                    nodes = self._kube_client.list_node().items
 
-            with self._lock:
-                nodes = self._kube_client.list_node().items
+                for node in nodes:
+                    if 'unique-name' not in node.metadata.labels and "ciy.persistent_node" not in node.metadata.labels:
+                        self._thread_pool.submit(
+                            self.clean_up_node,
+                            node.metadata.name,
+                            node.status.conditions[-1].type == "Ready",
+                        )
 
-            for node in nodes:
-                if 'unique-name' not in node.metadata.labels and "ciy.persistent_node" not in node.metadata.labels:
-                    self._thread_pool.submit(
-                        self.clean_up_node,
-                        node.metadata.name,
-                        node.status.conditions[-1].type == "Ready",
-                    )
+                    elif "ciy.persistent_node" not in node.metadata.labels:
+                        node_name = node.metadata.labels['unique-name']
 
-                elif "ciy.persistent_node" not in node.metadata.labels:
-                    node_name = node.metadata.labels['unique-name']
+                        with self._redlock:
+                            node_exists = node_name in self._keepalive_nodes_dict
 
-                    with self._redlock:
-                        node_exists = node_name in self._keepalive_nodes_dict
+                        if not node_exists:
+                            time.sleep(
+                                self.NODE_TIMEOUT_IN_SECONDS
+                            )  # allow for a timeout between node connection and keepalive
 
-                    if not node_exists:
-                        time.sleep(
-                            self.NODE_TIMEOUT_IN_SECONDS
-                        )  # allow for a timeout between node connection and keepalive
-
-                    with self._redlock:
-                        if (
-                            not node_exists
-                            or datetime.utcnow().timestamp()
-                            - self._keepalive_nodes_dict[node_name]
-                            > self.NODE_TIMEOUT_IN_SECONDS
-                        ):
-                            self._keepalive_nodes_dict.pop(node_name, None)
-                            self._thread_pool.submit(
-                                self.clean_up_node,
-                                node.metadata.name,
-                                node.status.conditions[-1].type == "Ready",
-                            )
+                        with self._redlock:
+                            if (
+                                not node_exists
+                                or datetime.utcnow().timestamp()
+                                - self._keepalive_nodes_dict[node_name]
+                                > self.NODE_TIMEOUT_IN_SECONDS
+                            ):
+                                self._keepalive_nodes_dict.pop(node_name, None)
+                                self._thread_pool.submit(
+                                    self.clean_up_node,
+                                    node.metadata.name,
+                                    node.status.conditions[-1].type == "Ready",
+                                )
+            except Exception as e: #TODO IMPROVE ME
+                print(f"Failed to clean up nodes.. error: {e}")
 
     def cordon_and_drain(self, node_name: str):
         body = {
