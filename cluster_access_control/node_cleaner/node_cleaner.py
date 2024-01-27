@@ -46,8 +46,16 @@ class NodeCleaner:
                 nodes = self._kube_client.list_node().items
 
             for node in nodes:
-                if "ciy.persistent_node" not in node.metadata.labels:
-                    node_name = node.metadata.name
+                if 'unique-name' not in node.metadata.labels:
+                    self._thread_pool.submit(
+                        self.clean_up_node,
+                        node.metadata.name,
+                        node.status.conditions[-1].type == "Ready",
+                    )
+
+                elif "ciy.persistent_node" not in node.metadata.labels:
+                    node_name = node.metadata.labels['unique-name']
+
                     with self._redlock:
                         node_exists = node_name in self._keepalive_nodes_dict
 
@@ -58,7 +66,7 @@ class NodeCleaner:
 
                     with self._redlock:
                         if (
-                            node not in self._keepalive_nodes_dict
+                            not node_exists
                             or datetime.utcnow().timestamp()
                             - self._keepalive_nodes_dict[node_name]
                             > self.NODE_TIMEOUT_IN_SECONDS
@@ -66,7 +74,7 @@ class NodeCleaner:
                             self._keepalive_nodes_dict.pop(node_name, None)
                             self._thread_pool.submit(
                                 self.clean_up_node,
-                                node_name,
+                                node.metadata.name,
                                 node.status.conditions[-1].type == "Ready",
                             )
 
