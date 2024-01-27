@@ -46,7 +46,7 @@ class NodeCleaner:
                 nodes = self._kube_client.list_node().items
 
             for node in nodes:
-                if 'unique-name' not in node.metadata.labels:
+                if 'unique-name' not in node.metadata.labels and "ciy.persistent_node" not in node.metadata.labels:
                     self._thread_pool.submit(
                         self.clean_up_node,
                         node.metadata.name,
