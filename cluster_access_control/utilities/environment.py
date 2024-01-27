@@ -60,7 +60,7 @@ class ClusterAccessConfiguration:
     async def get_vpn_join_token_key(self) -> str:
         headers = {"Authorization": f"Bearer {self._vpn_api_key}"}
         data = {
-            "user": "cluster-user",
+            "user": self.VPN_USER,
             "reusable": False,
             "ephemeral": False,
             "expiration": ClusterAccessConfiguration.get_time_for_pre_auth,
@@ -68,7 +68,7 @@ class ClusterAccessConfiguration:
         }
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                url=f"http://{self._cluster_host}:{self.VPN_PORT}/api/v1/preauthkey?user={self.VPN_USER}",
+                url=f"http://{self._cluster_host}:{self.VPN_PORT}/api/v1/preauthkey",
                 headers=headers,
                 json=data,
             )
