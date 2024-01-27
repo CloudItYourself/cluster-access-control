@@ -18,5 +18,7 @@ class ClusterAccess:
 
     async def cluster_access(self) -> KubernetesAccessResponse:
         return KubernetesAccessResponse(
-            k8s_config_file=pathlib.Path(self._environment.get_kubernetes_config_file()).read_text()
+            k8s_config_file=pathlib.Path(
+                self._environment.get_kubernetes_config_file()
+            ).read_text()
         )

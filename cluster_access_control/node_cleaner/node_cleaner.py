@@ -28,7 +28,9 @@ class NodeCleaner:
         )
         self._lock = Lock()
         self._thread_pool = ThreadPoolExecutor()
-        kubernetes.config.load_kube_config(config_file=self._environment.get_kubernetes_config_file())
+        kubernetes.config.load_kube_config(
+            config_file=self._environment.get_kubernetes_config_file()
+        )
 
         self._kube_client = client.CoreV1Api(client.ApiClient())
 
@@ -44,7 +46,7 @@ class NodeCleaner:
                 nodes = self._kube_client.list_node().items
 
             for node in nodes:
-                if 'ciy.persistent_node' not in node.metadata.labels:
+                if "ciy.persistent_node" not in node.metadata.labels:
                     node_name = node.metadata.name
                     with self._redlock:
                         node_exists = node_name in self._keepalive_nodes_dict
