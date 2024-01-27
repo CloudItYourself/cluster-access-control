@@ -72,7 +72,7 @@ class ClusterAccessConfiguration:
                 headers=headers,
                 json=data,
             )
-            return (await response.json())["preAuthKeys"]["key"]
+            return (await response.json())["preAuthKey"]["key"]
 
     def get_node_access_token(self) -> str:
         return self._node_access_token
