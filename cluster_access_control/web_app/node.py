@@ -29,9 +29,10 @@ class NodeRegistrar:
         self._registered_nodes = dict()
 
     async def request_token(self, node_details: NodeDetails) -> RegistrationDetails:
+        hashed_node_details = str(node_details)
         if (
-            node_details in self._registered_nodes
-            and time.time() - self._registered_nodes[str(node_details)]
+            hashed_node_details in self._registered_nodes
+            and time.time() - self._registered_nodes[hashed_node_details]
             < NodeRegistrar.NODE_REGISTER_COOLDOWN_IN_SECONDS
         ):
             raise HTTPException(
@@ -39,7 +40,7 @@ class NodeRegistrar:
                 detail=f"Error! node with name: {node_details.name} and id: {node_details.id} was registered lately",
             )
 
-        self._registered_nodes[str(node_details)] = time.time()
+        self._registered_nodes[hashed_node_details] = time.time()
         return RegistrationDetails(
             k8s_ip=self._environment.get_cluster_host(),
             k8s_port=ClusterAccessConfiguration.CLUSTER_PORT,
