@@ -38,7 +38,8 @@ class ClusterAccessConfiguration:
         )
         self._node_access_token = (
                 pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "k3s-node-token"
-        ).read_text()
+        ).read_text().replace("\n", "")
+        
         self._redis_url = (
             f'redis://:{os.environ["REDIS_PASSWORD"]}@{os.environ["REDIS_IP"]}/'
         )
