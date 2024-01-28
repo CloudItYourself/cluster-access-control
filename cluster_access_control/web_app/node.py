@@ -50,4 +50,4 @@ class NodeRegistrar:
         )
 
     def node_keepalive_message(self, node_details: NodeDetails):
-        self._node_cleaner.update_node_keepalive(str(hash(node_details)))
+        self._node_cleaner.update_node_keepalive(str(node_details))
