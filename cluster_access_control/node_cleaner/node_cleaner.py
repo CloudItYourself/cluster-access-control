@@ -47,11 +47,12 @@ class NodeCleaner:
 
                 for node in nodes:
                     if 'unique-name' not in node.metadata.labels and "ciy.persistent_node" not in node.metadata.labels:
-                        self._thread_pool.submit(
-                            self.clean_up_node,
-                            node.metadata.name,
-                            node.status.conditions[-1].type == "Ready",
-                        )
+                        # self._thread_pool.submit(
+                        #     self.clean_up_node,
+                        #     node.metadata.name,
+                        #     node.status.conditions[-1].type == "Ready",
+                        # )
+                        pass
 
                     elif "ciy.persistent_node" not in node.metadata.labels:
                         node_name = node.metadata.labels['unique-name']
@@ -71,12 +72,13 @@ class NodeCleaner:
                                 - self._keepalive_nodes_dict[node_name]
                                 > self.NODE_TIMEOUT_IN_SECONDS
                             ):
-                                self._keepalive_nodes_dict.pop(node_name, None)
-                                self._thread_pool.submit(
-                                    self.clean_up_node,
-                                    node.metadata.name,
-                                    node.status.conditions[-1].type == "Ready",
-                                )
+                                # self._keepalive_nodes_dict.pop(node_name, None)
+                                # self._thread_pool.submit(
+                                #     self.clean_up_node,
+                                #     node.metadata.name,
+                                #     node.status.conditions[-1].type == "Ready",
+                                # )
+                                pass
             except Exception as e: #TODO IMPROVE ME
                 print(f"Failed to clean up nodes.. error: {e}")
 
