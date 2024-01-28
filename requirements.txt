@@ -4,7 +4,7 @@ pydantic
 fastapi[all]~=0.108.0
 uvicorn~=0.23.2
 aiohttp~=3.8.5
-ciy-backend-libraries==0.0.4
+ciy-backend-libraries==0.0.5
 pottery
 starlette~=0.32.0.post1
 redis~=4.6.0
