@@ -26,14 +26,19 @@ class NodeRegistrar:
             self.node_keepalive_message,
             methods=["PUT"],
         )
+        self.router.add_api_route(
+            "/api/v1/node_exists/{node_name}",
+            self.is_node_online,
+            methods=["GET"],
+        )
         self._registered_nodes = dict()
 
     async def request_token(self, node_details: NodeDetails) -> RegistrationDetails:
         hashed_node_details = str(node_details)
         if (
-            hashed_node_details in self._registered_nodes
-            and time.time() - self._registered_nodes[hashed_node_details]
-            < NodeRegistrar.NODE_REGISTER_COOLDOWN_IN_SECONDS
+                hashed_node_details in self._registered_nodes
+                and time.time() - self._registered_nodes[hashed_node_details]
+                < NodeRegistrar.NODE_REGISTER_COOLDOWN_IN_SECONDS
         ):
             raise HTTPException(
                 status_code=429,
@@ -52,3 +57,8 @@ class NodeRegistrar:
 
     def node_keepalive_message(self, node_details: NodeDetails):
         self._node_cleaner.update_node_keepalive(str(node_details))
+
+    def is_node_online(self, node_name: str):
+        if node_name in self._node_cleaner.get_online_nodes():
+            return True
+        raise HTTPException(status_code=404)
