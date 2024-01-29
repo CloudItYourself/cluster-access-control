@@ -24,7 +24,8 @@ class NodeCleaner:
             redis=self._redis_client, name=self.NODE_CLEANING_DICT_NAME
         )
         self._redlock = Redlock(
-            key=self.NODE_CLEANING_LOCK_NAME, masters={self._redis_client}
+            key=self.NODE_CLEANING_LOCK_NAME, masters={self._redis_client},
+            auto_release_time=100
         )
         self._lock = Lock()
         self._thread_pool = ThreadPoolExecutor()
@@ -39,7 +40,7 @@ class NodeCleaner:
             self._keepalive_nodes_dict[node_name] = datetime.utcnow().timestamp()
 
     def delete_stale_nodes(self):
-        nodes_without_labels = set()
+        grace_period_nodes = set()
         while True:
             time.sleep(self.NODE_TIMEOUT_IN_SECONDS)
             try:
@@ -47,41 +48,28 @@ class NodeCleaner:
                     nodes = self._kube_client.list_node().items
 
                 for node in nodes:
-                    if 'unique-name' not in node.metadata.labels and "ciy.persistent_node" not in node.metadata.labels:
-                        if node.metadata.name in nodes_without_labels: # allow for a few seconds to initialize
-                            self._thread_pool.submit(
-                                self.clean_up_node,
-                                node.metadata.name,
-                                node.status.conditions[-1].type == "Ready",
-                            )
-                            nodes_without_labels.remove(node.metadata.name)
-                        else:
-                            nodes_without_labels.add(node.metadata.name)
-
-                    elif "ciy.persistent_node" not in node.metadata.labels:
-                        node_name = node.metadata.labels['unique-name']
+                    if "ciy.persistent_node" not in node.metadata.labels:
+                        node_name = node.metadata.name
 
                         with self._redlock:
                             node_exists = node_name in self._keepalive_nodes_dict
-
-                        if not node_exists:
-                            time.sleep(
-                                self.NODE_TIMEOUT_IN_SECONDS
-                            )  # allow for a timeout between node connection and keepalive
-
-                        with self._redlock:
-                            if (
-                                    not node_exists
-                                    or datetime.utcnow().timestamp()
-                                    - self._keepalive_nodes_dict[node_name]
-                                    > self.NODE_TIMEOUT_IN_SECONDS
-                            ):
-                                self._keepalive_nodes_dict.pop(node_name, None)
-                                self._thread_pool.submit(
-                                    self.clean_up_node,
-                                    node.metadata.name,
-                                    node.status.conditions[-1].type == "Ready",
-                                )
+                        if not node_exists and node_name not in grace_period_nodes:
+                            grace_period_nodes.add(node_name)
+                        else:
+                            with self._redlock:
+                                if (
+                                        not node_exists
+                                        or (datetime.utcnow().timestamp()
+                                        - self._keepalive_nodes_dict[node_name])
+                                        > self.NODE_TIMEOUT_IN_SECONDS
+                                ):
+                                    self._keepalive_nodes_dict.pop(node_name, None)
+                                    self._thread_pool.submit(
+                                        self.clean_up_node,
+                                        node.metadata.name,
+                                        node.status.conditions[-1].type == "Ready",
+                                    )
+                                    grace_period_nodes.remove(node_name)
             except Exception as e:  # TODO IMPROVE ME
                 print(f"Failed to clean up nodes.. error: {e}")
 
