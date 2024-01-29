@@ -12,7 +12,7 @@ from cluster_access_control.utilities.environment import ClusterAccessConfigurat
 
 
 class NodeRegistrar:
-    NODE_REGISTER_COOLDOWN_IN_SECONDS: Final[int] = 300  # 5 minutes
+    NODE_REGISTER_COOLDOWN_IN_SECONDS: Final[int] = 10  # 5 minutes
 
     def __init__(self, node_cleaner: NodeCleaner):
         self.router = APIRouter()
@@ -22,7 +22,7 @@ class NodeRegistrar:
             "/api/v1/node_token", self.request_token, methods=["POST"]
         )
         self.router.add_api_route(
-            "/api/v1/node_keepalive",
+            "/api/v1/node_keepalive/{node_id}",
             self.node_keepalive_message,
             methods=["PUT"],
         )
@@ -55,8 +55,8 @@ class NodeRegistrar:
             vpn_token=await self._environment.get_vpn_join_token_key(),
         )
 
-    def node_keepalive_message(self, node_details: NodeDetails):
-        self._node_cleaner.update_node_keepalive(str(node_details))
+    def node_keepalive_message(self, node_id: str, node_details: NodeDetails):
+        self._node_cleaner.update_node_keepalive(node_id, str(node_details))
 
     def is_node_online(self, node_name: str):
         if node_name in self._node_cleaner.get_online_nodes():

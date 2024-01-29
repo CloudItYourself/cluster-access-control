@@ -15,6 +15,7 @@ from cluster_access_control.utilities.environment import ClusterAccessConfigurat
 class NodeCleaner:
     NODE_CLEANING_DICT_NAME: Final[str] = "node_keepalive_dict"
     NODE_CLEANING_LOCK_NAME: Final[str] = "node_keepalive_lock"
+    NODE_NAME_TO_ID: Final[str] = "node_name_to_current_id"
     NODE_TIMEOUT_IN_SECONDS: Final[float] = 3
 
     def __init__(self):
@@ -22,6 +23,9 @@ class NodeCleaner:
         self._redis_client = Redis.from_url(f"{self._environment.get_redis_url()}/0")
         self._keepalive_nodes_dict = RedisDict(
             redis=self._redis_client, name=self.NODE_CLEANING_DICT_NAME
+        )
+        self._node_name_to_id = RedisDict(
+            redis=self._redis_client, name=self.NODE_NAME_TO_ID
         )
         self._redlock = Redlock(
             key=self.NODE_CLEANING_LOCK_NAME, masters={self._redis_client},
@@ -35,12 +39,13 @@ class NodeCleaner:
         self._prev_nodes_list = list()
         self._kube_client = client.CoreV1Api(client.ApiClient())
 
-    def update_node_keepalive(self, node_name: str):
+    def update_node_keepalive(self, node_id: str, node_name: str):
         with self._redlock:
+            self._node_name_to_id[node_id] = node_name
             self._keepalive_nodes_dict[node_name] = datetime.utcnow().timestamp()
 
     def delete_stale_nodes(self):
-        grace_period_nodes = set()
+        grace_period_nodes = dict()
         while True:
             time.sleep(self.NODE_TIMEOUT_IN_SECONDS)
             try:
@@ -50,17 +55,35 @@ class NodeCleaner:
                 for node in nodes:
                     if "ciy.persistent_node" not in node.metadata.labels:
                         node_name = node.metadata.name
+                        if node_name not in self._node_name_to_id and node_name not in grace_period_nodes:
+                            grace_period_nodes[node_name] = datetime.now()
+                            continue
+
+                        elif node_name not in self._node_name_to_id and node_name in grace_period_nodes:
+                            if (datetime.now() - grace_period_nodes[node_name]).seconds > 30:
+                                self._thread_pool.submit(
+                                    self.clean_up_node,
+                                    node.metadata.name,
+                                    node.status.conditions[-1].type == "Ready",
+                                )
+                                grace_period_nodes.pop(node_name)
+                            continue
+
+                        node_keepalive_name = self._node_name_to_id[node_name]
 
                         with self._redlock:
-                            node_exists = node_name in self._keepalive_nodes_dict
+                            node_exists = node_keepalive_name in self._keepalive_nodes_dict
                         if not node_exists and node_name not in grace_period_nodes:
-                            grace_period_nodes.add(node_name)
+                            grace_period_nodes[node_name] = datetime.now()
+                        elif node_name in grace_period_nodes and (
+                                datetime.now() - grace_period_nodes[node_name]).seconds < 30:
+                            pass
                         else:
                             with self._redlock:
                                 if (
                                         not node_exists
                                         or (datetime.utcnow().timestamp()
-                                        - self._keepalive_nodes_dict[node_name])
+                                            - self._keepalive_nodes_dict[node_keepalive_name])
                                         > self.NODE_TIMEOUT_IN_SECONDS
                                 ):
                                     self._keepalive_nodes_dict.pop(node_name, None)
@@ -69,7 +92,7 @@ class NodeCleaner:
                                         node.metadata.name,
                                         node.status.conditions[-1].type == "Ready",
                                     )
-                                    grace_period_nodes.remove(node_name)
+                                    grace_period_nodes.pop(node_name)
             except Exception as e:  # TODO IMPROVE ME
                 print(f"Failed to clean up nodes.. error: {e}")
 
