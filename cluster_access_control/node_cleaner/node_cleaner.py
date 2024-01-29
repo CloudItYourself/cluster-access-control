@@ -1,7 +1,7 @@
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Final
+from typing import Final, List
 
 import kubernetes
 from kubernetes import client
