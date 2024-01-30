@@ -22,7 +22,7 @@ class NodeCleaner:
         self._redis_client = Redis.from_url(f"{self._environment.get_redis_url()}/0")
 
         self._redlock = Redlock(
-            key=self.NODE_CLEANING_LOCK_NAME, masters={self._redis_client}, auto_release_time = 100
+            key=self.NODE_CLEANING_LOCK_NAME, masters={self._redis_client}, auto_release_time=100
         )
 
         self._keepalive_nodes_dict = RedisDict(
@@ -86,8 +86,10 @@ class NodeCleaner:
                                 continue
 
                             node_latest_keepalive = self._keepalive_nodes_dict[node_id]
-                            if (datetime.utcnow().timestamp() - node_latest_keepalive) > self.NODE_TIMEOUT_IN_SECONDS:
-                                print("Deleting node due to periodic message not received")
+                            if (datetime.utcnow() - datetime.fromtimestamp(
+                                    node_latest_keepalive)).total_seconds() > self.NODE_TIMEOUT_IN_SECONDS:
+                                print(
+                                    f"Deleting node due to periodic message not received, latest timestamp:{node_latest_keepalive}")
 
                                 self._thread_pool.submit(
                                     self.clean_up_node,
