@@ -64,7 +64,7 @@ class ClusterAccessConfiguration:
         data = {
             "user": self.VPN_USER,
             "reusable": False,
-            "ephemeral": False,
+            "ephemeral": True,
             "expiration": ClusterAccessConfiguration.get_time_for_pre_auth()
         }
         async with aiohttp.ClientSession() as session:
