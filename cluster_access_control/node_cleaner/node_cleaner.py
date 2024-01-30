@@ -57,7 +57,8 @@ class NodeCleaner:
                             continue
 
                         elif node_name not in self._node_name_to_id and node_name in grace_period_nodes:
-                            if (datetime.now() - grace_period_nodes[node_name]).seconds > 30:
+                            if (datetime.now() - grace_period_nodes[node_name]).seconds > 120:
+                                print("Deleting node due to grace period expiry")
                                 self._thread_pool.submit(
                                     self.clean_up_node,
                                     node.metadata.name,
@@ -67,7 +68,6 @@ class NodeCleaner:
                             continue
 
                         node_keepalive_name = self._node_name_to_id[node_name]
-
                         node_exists = node_keepalive_name in self._keepalive_nodes_dict
 
                         if not node_exists and node_name not in grace_period_nodes:
@@ -82,6 +82,7 @@ class NodeCleaner:
                                     or (datetime.utcnow().timestamp() - latest_keepalive) > self.NODE_TIMEOUT_IN_SECONDS
                             ):
                                 self._keepalive_nodes_dict.pop(node_keepalive_name, None)
+                                print("Deleting node due to periodic message not received")
 
                                 self._thread_pool.submit(
                                     self.clean_up_node,
