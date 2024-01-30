@@ -12,10 +12,9 @@ from cluster_access_control.utilities.environment import ClusterAccessConfigurat
 
 
 class NodeCleaner:
-    NODE_CLEANING_DICT_NAME: Final[str] = "node_keepalive_dict"
-    NODE_NAME_TO_ID: Final[str] = "node_name_to_current_id"
+    NODE_KEEPALIVE_PREFIX: Final[str] = "node-keepalive-prefix"
     NODE_CLEANING_LOCK_NAME: Final[str] = "cluster-access-cleanup-lock"
-    NODE_TIMEOUT_IN_SECONDS: Final[float] = 3
+    NODE_TIMEOUT_IN_SECONDS: Final[int] = 3
 
     def __init__(self):
         self._environment = ClusterAccessConfiguration()
@@ -23,13 +22,6 @@ class NodeCleaner:
 
         self._redlock = Redlock(
             key=self.NODE_CLEANING_LOCK_NAME, masters={self._redis_client}, auto_release_time=100
-        )
-
-        self._keepalive_nodes_dict = RedisDict(
-            redis=self._redis_client, name=self.NODE_CLEANING_DICT_NAME
-        )
-        self._node_name_to_id = RedisDict(
-            redis=self._redis_client, name=self.NODE_NAME_TO_ID
         )
 
         self._thread_pool = ThreadPoolExecutor()
@@ -42,14 +34,14 @@ class NodeCleaner:
         self._deletion_kube_client = client.CoreV1Api(
             kubernetes.config.new_client_from_config(config_file=self._environment.get_kubernetes_config_file()))
 
-    def update_node_keepalive(self, node_id: str, node_name: str):
-        self._node_name_to_id[node_id] = node_name
-        self._keepalive_nodes_dict[node_name] = datetime.utcnow().timestamp()
+    def update_node_keepalive(self, node_id: str):
+        self._redis_client.setex(f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_id}",
+                                 NodeCleaner.NODE_TIMEOUT_IN_SECONDS, str(datetime.utcnow().timestamp()), )
 
     def delete_stale_nodes(self):
         stale_node_deletion_client = client.CoreV1Api(
             kubernetes.config.new_client_from_config(config_file=self._environment.get_kubernetes_config_file()))
-        grace_period_nodes = dict()
+        grace_period_nodes = set()
         while True:
             time.sleep(self.NODE_TIMEOUT_IN_SECONDS)
             try:
@@ -58,47 +50,25 @@ class NodeCleaner:
                     for node in nodes:
                         if "ciy.persistent_node" not in node.metadata.labels:
                             node_name = node.metadata.name
-                            node_has_id = node_name in self._node_name_to_id
+                            node_exists = self._redis_client.get(
+                                f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_name}") is not None
 
-                            if node_has_id:
-                                node_keepalive_sent = self._node_name_to_id[node_name] in self._keepalive_nodes_dict
-                                node_id = self._node_name_to_id[node_name]
-                            else:
-                                node_id = None
-                                node_keepalive_sent = False
-
-                            if not node_has_id or not node_keepalive_sent:
+                            if not node_exists:
                                 if node_name not in grace_period_nodes:
-                                    grace_period_nodes[node_name] = datetime.now()
-                                elif (datetime.now() - grace_period_nodes[node_name]).seconds > 60:
+                                    grace_period_nodes.add(node_name)
+                                else:
                                     print("Deleting node due to grace period expiry")
                                     self._thread_pool.submit(
                                         self.clean_up_node,
                                         node.metadata.name,
                                         node.status.conditions[-1].type == "Ready",
                                     )
-                                    grace_period_nodes.pop(node_name)
 
-                                    self._node_name_to_id.pop(node_name)
-                                    if node_has_id:
-                                        self._keepalive_nodes_dict.pop(node_id)
+                                    grace_period_nodes.remove(node_name)
+                            else:
+                                if node_name in grace_period_nodes:
+                                    grace_period_nodes.remove(node_name)
 
-                                continue
-
-                            node_latest_keepalive = self._keepalive_nodes_dict[node_id]
-                            if (datetime.utcnow() - datetime.fromtimestamp(
-                                    node_latest_keepalive)).total_seconds() > self.NODE_TIMEOUT_IN_SECONDS:
-                                print(
-                                    f"Deleting node due to periodic message not received, latest timestamp:{node_latest_keepalive}")
-
-                                self._thread_pool.submit(
-                                    self.clean_up_node,
-                                    node.metadata.name,
-                                    node.status.conditions[-1].type == "Ready",
-                                )
-                                grace_period_nodes.pop(node_name)
-                                self._node_name_to_id.pop(node_name)
-                                self._keepalive_nodes_dict.pop(node_id)
 
             except Exception as e:  # TODO IMPROVE ME
                 print(f"Failed to clean up nodes.. error: {e}")

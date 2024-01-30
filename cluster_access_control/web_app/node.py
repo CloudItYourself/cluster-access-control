@@ -55,8 +55,8 @@ class NodeRegistrar:
             vpn_token=await self._environment.get_vpn_join_token_key(),
         )
 
-    def node_keepalive_message(self, node_id: str, node_details: NodeDetails):
-        self._node_cleaner.update_node_keepalive(node_id, str(node_details))
+    def node_keepalive_message(self, node_id: str):
+        self._node_cleaner.update_node_keepalive(node_id)
 
     def is_node_online(self, node_name: str):
         if node_name in self._node_cleaner.get_online_nodes():
