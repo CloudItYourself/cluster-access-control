@@ -36,9 +36,9 @@ class NodeRegistrar:
     async def request_token(self, node_details: NodeDetails) -> RegistrationDetails:
         hashed_node_details = str(node_details)
         if (
-                hashed_node_details in self._registered_nodes
-                and time.time() - self._registered_nodes[hashed_node_details]
-                < NodeRegistrar.NODE_REGISTER_COOLDOWN_IN_SECONDS
+            hashed_node_details in self._registered_nodes
+            and time.time() - self._registered_nodes[hashed_node_details]
+            < NodeRegistrar.NODE_REGISTER_COOLDOWN_IN_SECONDS
         ):
             raise HTTPException(
                 status_code=429,
