@@ -71,7 +71,7 @@ class ClusterAccessConfiguration:
         }
         async with aiohttp.ClientSession() as session:
             response = await session.post(
-                url=f"http://{self._cluster_host}:{self.VPN_PORT}/api/v1/preauthkey",
+                url=f"https://{self._cluster_host}:{self.VPN_PORT}/api/v1/preauthkey",
                 headers=headers,
                 json=data,
             )
