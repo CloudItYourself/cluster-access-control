@@ -17,7 +17,7 @@ class NodeCleaner:
     CONNECTED_NODE_SET: Final[str] = "connected-nodes-set"
     CONNECTED_NODE_SET_TIME: Final[str] = "connected-nodes-set-time"
     CONNECTED_NODE_LOCK: Final[str] = "connected-nodes-lock"
-    NODE_TIMEOUT_IN_SECONDS: Final[int] = 10
+    NODE_TIMEOUT_IN_SECONDS: Final[int] = 3
     READY_NODE_CHECK_PERIOD_IN_SECONDS: Final[int] = 5
 
     def __init__(self):
