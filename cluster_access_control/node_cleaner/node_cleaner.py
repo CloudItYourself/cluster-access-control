@@ -1,3 +1,4 @@
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -63,12 +64,21 @@ class NodeCleaner:
             str(datetime.utcnow().timestamp()),
         )
 
-    def delete_stale_nodes(self):
-        stale_node_deletion_client = client.CoreV1Api(
-            kubernetes.config.new_client_from_config(
-                config_file=self._environment.get_kubernetes_config_file()
+    def get_kube_client(self):
+        try:
+            kube_client = client.CoreV1Api(
+                kubernetes.config.new_client_from_config(
+                    config_file=self._environment.get_kubernetes_config_file()
+                )
             )
-        )
+            return kube_client
+        except Exception as e:
+            print("Killing due to kubernetes failure")
+            sys.exit(-1)
+
+    def delete_stale_nodes(self):
+        stale_node_deletion_client = self.get_kube_client()
+
         grace_period_nodes = set()
         while True:
             time.sleep(self.NODE_TIMEOUT_IN_SECONDS)
