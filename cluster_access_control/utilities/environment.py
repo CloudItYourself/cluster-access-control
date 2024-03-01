@@ -4,8 +4,14 @@ import os
 import pathlib
 import tempfile
 from datetime import datetime, timedelta
-from typing import Final
+from typing import Final, NamedTuple
 import aiohttp
+
+
+class PostgresDetails(NamedTuple):
+    host: str
+    user: str
+    password: str
 
 
 class ClusterAccessConfiguration:
@@ -18,21 +24,21 @@ class ClusterAccessConfiguration:
 
     def __init__(self):
         self._cluster_host = (
-            pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "host-source-dns-name"
+                pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "host-source-dns-name"
         ).read_text()
         self._vpn_api_key = (
-            pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "vpn-token"
+                pathlib.Path(os.environ["KUBERNETES_CONFIG"]) / "vpn-token"
         ).read_text()
 
         self._kubernetes_config_file = (
-            pathlib.Path(ClusterAccessConfiguration.TEMPORARY_DIRECTORY.name)
-            / ClusterAccessConfiguration.KUBE_CONFIG_FILE_NAME
+                pathlib.Path(ClusterAccessConfiguration.TEMPORARY_DIRECTORY.name)
+                / ClusterAccessConfiguration.KUBE_CONFIG_FILE_NAME
         )
         self._kubernetes_config_file.write_text(
             base64.b64decode(
                 (
-                    pathlib.Path(os.environ["KUBERNETES_CONFIG"])
-                    / "kubernetes-config-file"
+                        pathlib.Path(os.environ["KUBERNETES_CONFIG"])
+                        / "kubernetes-config-file"
                 ).read_text()
             ).decode("utf-8")
         )
@@ -44,6 +50,11 @@ class ClusterAccessConfiguration:
 
         self._redis_url = (
             f'redis://:{os.environ["REDIS_PASSWORD"]}@{os.environ["REDIS_IP"]}/'
+        )
+        self._postgres_details = PostgresDetails(
+            host=os.environ["POSTGRES_IP"],
+            user=os.environ["POSTGRES_USER"],
+            password=os.environ["POSTGRES_PWD"]
         )
 
     @staticmethod
@@ -82,3 +93,6 @@ class ClusterAccessConfiguration:
 
     def get_redis_url(self) -> str:
         return self._redis_url
+
+    def get_postgres_details(self) -> PostgresDetails:
+        return self._postgres_details
