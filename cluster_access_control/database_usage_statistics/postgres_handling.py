@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from typing import Final
 
@@ -112,13 +113,13 @@ class PostgresHandler:
                         );
                        INSERT INTO {PostgresHandler.NODE_DETAILS_NAME}
                        VALUES (DEFAULT, %s, to_timestamp(%s), 0);
-                       CREATE INDEX idx_seconds_since_midnight_divided ON {PostgresHandler.NODE_USAGE_TABLE}_{node_name} (seconds_since_midnight_divided);
+                       CREATE INDEX idx_seconds_since_midnight_divided_{node_name} ON {PostgresHandler.NODE_USAGE_TABLE}_{node_name} (seconds_since_midnight_divided);
                     END $$;
                     """)
                     cur.execute(register_node_query, (node_name, datetime.utcnow().timestamp()))
 
                     insert_query = f"insert into {PostgresHandler.NODE_USAGE_TABLE}_{node_name} values %s"
-                    psycopg2.extras.execute_values(self._cursor, insert_query, table_init,
+                    psycopg2.extras.execute_values(cur, insert_query, table_init,
                                                    template="(DEFAULT, %s, %s, %s)",
                                                    page_size=100)
 
@@ -133,26 +134,29 @@ class PostgresHandler:
         finally:
             self._connection_pool.putconn(conn)
 
-    def update_node(self, node_name: str) -> bool:
+    def update_node(self, node_name: str, timestamp: datetime) -> bool:
         if not self._node_already_registered(node_name):
             return False
 
-        current_time = datetime.utcnow()
-        seconds_since_midnight = (current_time - current_time.replace(
+        seconds_since_midnight = (timestamp - timestamp.replace(
             hour=0, minute=0, second=0, microsecond=0
         )).seconds // 10
         try:
             conn = self._connection_pool.getconn()
             conn.autocommit = True
             with conn.cursor() as cur:
-                cur.execute(f"UPDATE {PostgresHandler.NODE_USAGE_TABLE}_{node_name} SET check_in_count=check_in_count + 1"
-                            f" WHERE seconds_since_midnight_divided={seconds_since_midnight} and day_of_week={current_time.weekday()}")
+                cur.execute(
+                    f"UPDATE {PostgresHandler.NODE_USAGE_TABLE}_{node_name} SET check_in_count=check_in_count + 1"
+                    f" WHERE seconds_since_midnight_divided={seconds_since_midnight} and day_of_week={timestamp.weekday()}")
         finally:
             self._connection_pool.putconn(conn)
 
 
 if __name__ == '__main__':
     xd = PostgresHandler()
-    xd.register_node("Ronen2")
-    for i in range(100000):
-        xd.update_node("Ronen2")
+    before = time.time()
+    xd.register_node("Ronen12")
+    print("Time to register: ", time.time() - before)
+    before = time.time()
+    xd.update_node("Ronen12")
+    print("Time to update: ", time.time() - before)
