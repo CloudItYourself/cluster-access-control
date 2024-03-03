@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Final, Optional
 
 import psycopg2
+import psycopg2.extras
+from psycopg2 import sql
 
 from cluster_access_control.utilities.environment import ClusterAccessConfiguration
 
@@ -11,6 +13,7 @@ class PostgresHandler:
     NODE_DETAILS_NAME: Final[str] = "nodes_usage"
     NODE_USAGE_TABLE: Final[str] = "nodes_usage_details"
     DB_NAME: Final[str] = "node_metrics"
+    SECONDS_IN_DAY: Final[int] = 86400
 
     def __init__(self):
         self._postgres_details = ClusterAccessConfiguration().get_postgres_details()
@@ -75,7 +78,7 @@ class PostgresHandler:
 
         CREATE TABLE IF NOT EXISTS {PostgresHandler.NODE_USAGE_TABLE} (
             id SERIAL PRIMARY KEY,
-            name VARCHAR(100) UNIQUE,
+            name VARCHAR(100),
             day_of_week DAY_OF_WEEK,
             second_since_midnight INTEGER,
             check_in_count INTEGER
@@ -84,19 +87,43 @@ class PostgresHandler:
         # Execute the SQL command
         self._cursor.execute(create_table_query)
 
-    def register_node(self, node_name: str):
-        register_node_query = f"""
-        DO $$ BEGIN
-           IF NOT EXISTS (SELECT * FROM {PostgresHandler.NODE_DETAILS_NAME} 
-                           WHERE name='{node_name}') THEN
-               INSERT INTO {PostgresHandler.NODE_DETAILS_NAME}
-               VALUES (DEFAULT, '{node_name}', to_timestamp({datetime.utcnow().timestamp()}), 0);
-           END IF;
-        END $$;
-        """
-        self._cursor.execute(register_node_query)
+    def _node_already_registered(self, nodes_name: str) -> bool:
+        self._cursor.execute(
+            f"SELECT EXISTS(SELECT 1 FROM {PostgresHandler.NODE_DETAILS_NAME} WHERE name='{nodes_name}')")
+        return self._cursor.fetchone()[0]
+
+    def register_node(self, node_name: str) -> bool:
+        if self._node_already_registered(node_name):
+            return True
+        table_init = []
+        for day_in_week in ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']:
+            for i in range(0, PostgresHandler.SECONDS_IN_DAY):
+                table_init.append((node_name, day_in_week, i, '0'))
+
+        # Start a transaction
+        self._cursor.execute("BEGIN;")
+        try:
+            # Register node query
+            register_node_query = sql.SQL("""
+            DO $$ BEGIN
+               INSERT INTO {}
+               VALUES (DEFAULT, %s, to_timestamp(%s), 0);
+            END $$;
+            """).format(sql.Identifier(PostgresHandler.NODE_DETAILS_NAME))
+            self._cursor.execute(register_node_query, (node_name, datetime.utcnow().timestamp()))
+
+            insert_query = f"insert into {PostgresHandler.NODE_USAGE_TABLE} values %s"
+            psycopg2.extras.execute_values(self._cursor, insert_query, table_init, template="(DEFAULT, %s, %s,%s,%s)",
+                                           page_size=100)
+
+            # Commit the transaction
+            self._cursor.execute("COMMIT;")
+        except Exception as e:
+            # Rollback the transaction in case of any error
+            self._cursor.execute("ROLLBACK;")
+            print("Error occurred:", e)
 
 
 if __name__ == '__main__':
     xd = PostgresHandler()
-    xd.register_node("Ronen")
+    xd.register_node("Ronen2")
