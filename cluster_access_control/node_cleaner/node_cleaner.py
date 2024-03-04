@@ -89,10 +89,10 @@ class NodeCleaner:
                         if "ciy.persistent_node" not in node.metadata.labels:
                             node_name = node.metadata.name
                             node_exists = (
-                                self._redis_client.get(
-                                    f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_name}"
-                                )
-                                is not None
+                                    self._redis_client.get(
+                                        f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_name}"
+                                    )
+                                    is not None
                             )
 
                             if not node_exists:
@@ -100,6 +100,7 @@ class NodeCleaner:
                                     grace_period_nodes.add(node_name)
                                 else:
                                     print("Deleting node due to grace period expiry")
+                                    #TODO: add postgres notification
                                     self._thread_pool.submit(
                                         self.clean_up_node,
                                         node.metadata.name,
@@ -129,7 +130,7 @@ class NodeCleaner:
             pod
             for pod in pods
             if not pod.metadata.owner_references
-            or pod.metadata.owner_references[0].kind != "DaemonSet"
+               or pod.metadata.owner_references[0].kind != "DaemonSet"
         ]
 
         for pod in non_daemonset_pods:
@@ -165,12 +166,12 @@ class NodeCleaner:
                 NodeCleaner.CONNECTED_NODE_SET_TIME
             )
             if (
-                last_connected_node_timestamp is None
-                or (
+                    last_connected_node_timestamp is None
+                    or (
                     datetime.utcnow()
                     - datetime.fromtimestamp(float(last_connected_node_timestamp))
-                ).total_seconds()
-                > NodeCleaner.READY_NODE_CHECK_PERIOD_IN_SECONDS
+            ).total_seconds()
+                    > NodeCleaner.READY_NODE_CHECK_PERIOD_IN_SECONDS
             ):
                 current_node_list = {
                     node.metadata.name
@@ -188,3 +189,6 @@ class NodeCleaner:
                 current_node_list = self._current_node_set.to_set()
 
         return current_node_list
+
+    def gracefully_kill_node(self, node_name: str):
+        self._thread_pool.submit(self.clean_up_node, node_name, True)
