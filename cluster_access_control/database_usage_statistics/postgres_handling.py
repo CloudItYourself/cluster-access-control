@@ -29,7 +29,7 @@ class PostgresHandler:
             password=self._postgres_details.password,
             host=self._postgres_details.host,
             port=PostgresHandler.DB_PORT,
-            database=PostgresHandler.DB_NAME
+            database=PostgresHandler.DB_NAME,
         )
 
         self._initialize_databases()
@@ -37,18 +37,24 @@ class PostgresHandler:
     def _create_database_if_doesnt_exist(self):
         try:
             # Attempt to connect to the desired database
-            connection = psycopg2.connect(dbname=PostgresHandler.DB_NAME, user=self._postgres_details.user,
-                                          password=self._postgres_details.password,
-                                          host=self._postgres_details.host,
-                                          port=PostgresHandler.DB_PORT)
+            connection = psycopg2.connect(
+                dbname=PostgresHandler.DB_NAME,
+                user=self._postgres_details.user,
+                password=self._postgres_details.password,
+                host=self._postgres_details.host,
+                port=PostgresHandler.DB_PORT,
+            )
         except psycopg2.Error as e:
             # If the connection fails, check if the database does not exist
             if 'database "{}" does not exist'.format(PostgresHandler.DB_NAME) in str(e):
                 # Connect to the default database
-                connection = psycopg2.connect(dbname='postgres', user=self._postgres_details.user,
-                                              password=self._postgres_details.password,
-                                              host=self._postgres_details.host,
-                                              port=PostgresHandler.DB_PORT)
+                connection = psycopg2.connect(
+                    dbname="postgres",
+                    user=self._postgres_details.user,
+                    password=self._postgres_details.password,
+                    host=self._postgres_details.host,
+                    port=PostgresHandler.DB_PORT,
+                )
                 connection.autocommit = True
                 cursor = connection.cursor()
 
@@ -60,7 +66,8 @@ class PostgresHandler:
                 connection.close()
             else:
                 raise RuntimeError(
-                    "Error: Could not connect to PostgreSQL. Please check your credentials and database settings.")
+                    "Error: Could not connect to PostgreSQL. Please check your credentials and database settings."
+                )
 
     def _initialize_databases(self):
         # SQL command to create a table if it doesn't exist
@@ -86,7 +93,8 @@ class PostgresHandler:
             conn = self._connection_pool.getconn()
             with conn.cursor() as cur:
                 cur.execute(
-                    f"SELECT EXISTS(SELECT 1 FROM {PostgresHandler.NODE_DETAILS_NAME} WHERE name='{nodes_name}')")
+                    f"SELECT EXISTS(SELECT 1 FROM {PostgresHandler.NODE_DETAILS_NAME} WHERE name='{nodes_name}')"
+                )
                 return cur.fetchone()[0]
         finally:
             self._connection_pool.putconn(conn)
@@ -96,15 +104,19 @@ class PostgresHandler:
             return True
         table_init = []
         for i in range(7):
-            for j in range(0, PostgresHandler.SECONDS_IN_DAY // PostgresHandler.SECONDS_PER_CHECK_IN):
-                table_init.append((i, j, '0'))
+            for j in range(
+                0,
+                PostgresHandler.SECONDS_IN_DAY // PostgresHandler.SECONDS_PER_CHECK_IN,
+            ):
+                table_init.append((i, j, "0"))
         try:
             conn = self._connection_pool.getconn()
             with conn.cursor() as cur:
                 cur.execute("BEGIN;")
                 try:
                     # Register node query
-                    register_node_query = sql.SQL(f"""
+                    register_node_query = sql.SQL(
+                        f"""
                     DO $$ BEGIN
                         CREATE TABLE IF NOT EXISTS {PostgresHandler.NODE_USAGE_TABLE}_{node_name} (
                             id SERIAL PRIMARY KEY,
@@ -116,13 +128,20 @@ class PostgresHandler:
                        VALUES (DEFAULT, %s, to_timestamp(%s), 0);
                        CREATE INDEX idx_seconds_since_midnight_divided_{node_name} ON {PostgresHandler.NODE_USAGE_TABLE}_{node_name} (seconds_since_midnight_divided);
                     END $$;
-                    """)
-                    cur.execute(register_node_query, (node_name, datetime.utcnow().timestamp()))
+                    """
+                    )
+                    cur.execute(
+                        register_node_query, (node_name, datetime.utcnow().timestamp())
+                    )
 
                     insert_query = f"insert into {PostgresHandler.NODE_USAGE_TABLE}_{node_name} values %s"
-                    psycopg2.extras.execute_values(cur, insert_query, table_init,
-                                                   template="(DEFAULT, %s, %s, %s)",
-                                                   page_size=100)
+                    psycopg2.extras.execute_values(
+                        cur,
+                        insert_query,
+                        table_init,
+                        template="(DEFAULT, %s, %s, %s)",
+                        page_size=100,
+                    )
 
                     # Commit the transaction
                     cur.execute("COMMIT;")
@@ -137,9 +156,9 @@ class PostgresHandler:
 
     @staticmethod
     def get_seconds_since_midnight(timestamp: datetime) -> int:
-        return (timestamp - timestamp.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )).seconds // PostgresHandler.SECONDS_PER_CHECK_IN
+        return (
+            timestamp - timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+        ).seconds // PostgresHandler.SECONDS_PER_CHECK_IN
 
     def update_node(self, node_name: str, timestamp: datetime) -> bool:
         if not self.node_registered(node_name):
@@ -152,7 +171,8 @@ class PostgresHandler:
                 cur.execute(
                     f"UPDATE {PostgresHandler.NODE_USAGE_TABLE}_{node_name} SET check_in_count=check_in_count + 1"
                     f" WHERE seconds_since_midnight_divided={PostgresHandler.get_seconds_since_midnight(timestamp)}"
-                    f" and day_of_week={timestamp.weekday()}")
+                    f" and day_of_week={timestamp.weekday()}"
+                )
         finally:
             self._connection_pool.putconn(conn)
 
@@ -169,18 +189,28 @@ class PostgresHandler:
             days.append(current_day)
         return days
 
-    def get_node_check_in_times(self, node_name: str, start_day: int, end_day: int, start_time: datetime.timestamp,
-                                end_time: datetime.timestamp) -> dict[int, list]:
+    def get_node_check_in_times(
+        self,
+        node_name: str,
+        start_day: int,
+        end_day: int,
+        start_time: datetime.timestamp,
+        end_time: datetime.timestamp,
+    ) -> dict[int, list]:
         if not self.node_registered(node_name):
             raise RuntimeWarning("Node is not registered")
         sql_queries = dict()
-        work_days_in_timeframe = PostgresHandler.get_work_days_between_dates_in_order(start_day, end_day)
+        work_days_in_timeframe = PostgresHandler.get_work_days_between_dates_in_order(
+            start_day, end_day
+        )
         for i, work_day in enumerate(work_days_in_timeframe):
-            sql_queries[work_day] = (f"SELECT seconds_since_midnight_divided, check_in_count"
-                                     f" FROM {PostgresHandler.NODE_USAGE_TABLE}_{node_name} "
-                                     f"WHERE day_of_week={work_day} "
-                                     f"and seconds_since_midnight_divided>={PostgresHandler.get_seconds_since_midnight(start_time)} "
-                                     f"and seconds_since_midnight_divided<={PostgresHandler.get_seconds_since_midnight(end_time)}")
+            sql_queries[work_day] = (
+                f"SELECT seconds_since_midnight_divided, check_in_count"
+                f" FROM {PostgresHandler.NODE_USAGE_TABLE}_{node_name} "
+                f"WHERE day_of_week={work_day} "
+                f"and seconds_since_midnight_divided>={PostgresHandler.get_seconds_since_midnight(start_time)} "
+                f"and seconds_since_midnight_divided<={PostgresHandler.get_seconds_since_midnight(end_time)}"
+            )
 
         sql_results = dict()
         try:
@@ -202,7 +232,36 @@ class PostgresHandler:
             conn.autocommit = True
             with conn.cursor() as cur:
                 cur.execute(
-                    f"SELECT registration_date FROM {PostgresHandler.NODE_DETAILS_NAME} WHERE name='{node_name}'")
-                return datetime.fromtimestamp(cur.fetchone()[0])
+                    f"SELECT registration_time FROM {PostgresHandler.NODE_DETAILS_NAME} WHERE name='{node_name}'"
+                )
+                return cur.fetchall()[0][0]
+        finally:
+            self._connection_pool.putconn(conn)
+
+    def add_abrupt_disconnect_to_node(self, node_name: str) -> bool:
+        if not self.node_registered(node_name):
+            return False
+        try:
+            conn = self._connection_pool.getconn()
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"UPDATE {PostgresHandler.NODE_DETAILS_NAME} SET abrupt_disconnects=abrupt_disconnects+1 WHERE name='{node_name}'"
+                )
+            return True
+        finally:
+            self._connection_pool.putconn(conn)
+
+    def get_abrupt_disconnect_for_node(self, node_name: str) -> int:
+        if not self.node_registered(node_name):
+            return -1
+        try:
+            conn = self._connection_pool.getconn()
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT abrupt_disconnects FROM {PostgresHandler.NODE_DETAILS_NAME} WHERE name='{node_name}'"
+                )
+                return cur.fetchall()[0][0]
         finally:
             self._connection_pool.putconn(conn)

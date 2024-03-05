@@ -11,7 +11,7 @@ def parse_requirements(filename: pathlib.Path):
 
 setup(
     name="cluster_access_control",
-    version="0.0.1",
+    version="0.0.2",
     packages=find_packages(),
     install_requires=parse_requirements(
         pathlib.Path(__file__).parent / "requirements.txt"

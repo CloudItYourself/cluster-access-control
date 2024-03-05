@@ -4,7 +4,9 @@ from typing import Final
 
 from redis.client import Redis
 
-from cluster_access_control.database_usage_statistics.postgres_handling import PostgresHandler
+from cluster_access_control.database_usage_statistics.postgres_handling import (
+    PostgresHandler,
+)
 from cluster_access_control.node_cleaner.node_cleaner import NodeCleaner
 
 from fastapi import APIRouter
@@ -49,9 +51,9 @@ class NodeRegistrar:
     async def request_token(self, node_details: NodeDetails) -> RegistrationDetails:
         hashed_node_details = str(node_details)
         if (
-                hashed_node_details in self._registered_nodes
-                and time.time() - self._registered_nodes[hashed_node_details]
-                < NodeRegistrar.NODE_REGISTER_COOLDOWN_IN_SECONDS
+            hashed_node_details in self._registered_nodes
+            and time.time() - self._registered_nodes[hashed_node_details]
+            < NodeRegistrar.NODE_REGISTER_COOLDOWN_IN_SECONDS
         ):
             raise HTTPException(
                 status_code=429,
@@ -73,9 +75,12 @@ class NodeRegistrar:
         self._node_cleaner.update_node_keepalive(node_id)
         current_time = datetime.datetime.utcnow()
 
-        if redis_test_and_set(self._redis_client, node_id,
-                              f"{node_id}_{current_time.weekday()}_{PostgresHandler.get_seconds_since_midnight(current_time)}",
-                              PostgresHandler.SECONDS_PER_CHECK_IN * 2):
+        if redis_test_and_set(
+            self._redis_client,
+            node_id,
+            f"{node_id}_{current_time.weekday()}_{PostgresHandler.get_seconds_since_midnight(current_time)}",
+            PostgresHandler.SECONDS_PER_CHECK_IN * 2,
+        ):
             self._postgres_handler.update_node(node_id, current_time)
 
     def is_node_online(self, node_name: str):
