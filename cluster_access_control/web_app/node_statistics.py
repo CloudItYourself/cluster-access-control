@@ -21,7 +21,7 @@ class NodeStatistics:
             methods=["GET"],
         )
         self.router.add_api_route(
-            "/api/v1/node_survival_chance/{node_name}/abrupt_disconnects",
+            "/api/v1/abrupt_disconnects/{node_name}",
             self.get_abrupt_disconnect_count,
             methods=["GET"],
         )
