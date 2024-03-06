@@ -3,6 +3,7 @@ from statistics import mean
 from typing import Final, Optional
 
 from fastapi import APIRouter, HTTPException
+from fastapi_cache.decorator import cache
 
 from cluster_access_control.database_usage_statistics.postgres_handling import (
     PostgresHandler,
@@ -120,6 +121,7 @@ class NodeStatistics:
         except RuntimeWarning:
             raise HTTPException(status_code=400)
 
+    @cache(expire=30)
     def node_survival_chance(self, node_name: str, time_range_in_minutes: int) -> float:
         if time_range_in_minutes >= 1440:
             raise HTTPException(status_code=400)
@@ -133,6 +135,7 @@ class NodeStatistics:
         except RuntimeWarning:
             raise HTTPException(status_code=400)
 
+    @cache(expire=60)
     def get_abrupt_disconnect_count(self, node_name: str) -> int:
         if not self._postgres_handler.node_registered(node_name):
             raise HTTPException(status_code=400)
