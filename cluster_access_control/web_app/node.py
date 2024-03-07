@@ -42,9 +42,9 @@ class NodeRegistrar:
             methods=["GET"],
         )
         self.router.add_api_route(
-            "/api/v1/node_exists/{node_name}",
+            "/api/v1/gracefully_terminate/{node_name}",
             self.request_graceful_shutdown,
-            methods=["POSTS"],
+            methods=["POST"],
         )
         self._registered_nodes = dict()
 
