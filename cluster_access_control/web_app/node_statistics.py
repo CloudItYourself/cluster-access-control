@@ -12,6 +12,7 @@ from cluster_access_control.database_usage_statistics.postgres_handling import (
 
 class NodeStatistics:
     DAYS_IN_WEEK: Final[int] = 7
+    SECONDS_IN_HOUR: Final[int] = 3600
 
     def __init__(self, postgres_handler: PostgresHandler):
         self.router = APIRouter()
@@ -136,10 +137,19 @@ class NodeStatistics:
             raise HTTPException(status_code=400)
 
     @cache(expire=60)
-    def get_abrupt_disconnect_count(self, node_name: str) -> int:
+    def get_abrupt_disconnect_count(self, node_name: str) -> float:
         if not self._postgres_handler.node_registered(node_name):
             raise HTTPException(status_code=400)
-        ret_val = self._postgres_handler.get_abrupt_disconnect_for_node(node_name)
-        if ret_val == -1:
+        abruption_count = self._postgres_handler.get_abrupt_disconnect_for_node(node_name)
+        if abruption_count == -1:
             raise HTTPException(status_code=500, detail="failed to get abrupt disconnect count")
-        return ret_val
+        node_registration_time = self._postgres_handler.get_node_registration_time(
+            node_name
+        )
+        current_time = datetime.datetime.utcnow()
+        if current_time - datetime.timedelta(
+                hours=abruption_count) < node_registration_time:  # each abruption is a penalty of one hour
+            return 0.0
+        else:
+            return 1.0 - (abruption_count * NodeStatistics.SECONDS_IN_HOUR / (
+                        current_time - node_registration_time).seconds)

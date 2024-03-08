@@ -13,7 +13,7 @@ from cluster_access_control.web_app.node_statistics import NodeStatistics
 
 def main():
     app = FastAPI()
-    initialize_fastapi_cache()
+    app.on_event("startup")(initialize_fastapi_cache)
     postgres_handler = PostgresHandler()
     node_cleaner = NodeCleaner(postgres_handler)
     node_cleaner_thread = threading.Thread(target=node_cleaner.delete_stale_nodes)

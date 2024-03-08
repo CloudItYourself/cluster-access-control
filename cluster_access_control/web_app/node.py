@@ -77,7 +77,6 @@ class NodeRegistrar:
 
         if redis_test_and_set(
             self._redis_client,
-            node_id,
             f"{node_id}_{current_time.weekday()}_{PostgresHandler.get_seconds_since_midnight(current_time)}",
             PostgresHandler.SECONDS_PER_CHECK_IN * 2,
         ):
