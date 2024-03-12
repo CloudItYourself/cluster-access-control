@@ -111,7 +111,7 @@ class NodeMaintainer:
                             time_range_in_minutes=NodeMaintainer.NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES,
                         )
                         is_node_unschedulable = node.spec.unschedulable
-                        if survival_chance == 0.0:
+                        if survival_chance <= 0.25:
                             print(f"Cordoning node: {node.metadata.name} due to 0 percent change of being alive for the next"
                                   f" {NodeMaintainer.NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES} minutes")
                             self._thread_pool.submit(
