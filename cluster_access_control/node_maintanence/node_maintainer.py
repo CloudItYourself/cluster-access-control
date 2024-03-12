@@ -18,7 +18,7 @@ from cluster_access_control.utilities.environment import ClusterAccessConfigurat
 from cluster_access_control.web_app.node_statistics import NodeStatistics
 
 
-class NodeCleaner:
+class NodeMaintainer:
     NODE_KEEPALIVE_PREFIX: Final[str] = "node-keepalive-prefix"
     NODE_CLEANING_LOCK_NAME: Final[str] = "cluster-access-cleanup-lock"
     CONNECTED_NODE_SET: Final[str] = "connected-nodes-set"
@@ -55,7 +55,7 @@ class NodeCleaner:
         )
 
         self._current_node_set = RedisSet(
-            redis=self._redis_client, key=NodeCleaner.CONNECTED_NODE_SET
+            redis=self._redis_client, key=NodeMaintainer.CONNECTED_NODE_SET
         )
 
         self._kube_client = client.CoreV1Api(
@@ -76,8 +76,8 @@ class NodeCleaner:
 
     def update_node_keepalive(self, node_id: str):
         self._redis_client.setex(
-            f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_id}",
-            NodeCleaner.NODE_TIMEOUT_IN_SECONDS,
+            f"{NodeMaintainer.NODE_KEEPALIVE_PREFIX}-{node_id}",
+            NodeMaintainer.NODE_TIMEOUT_IN_SECONDS,
             str(datetime.utcnow().timestamp()),
         )
 
@@ -106,9 +106,9 @@ class NodeCleaner:
                 ]
                 for node in relevant_nodes:
                     try:
-                        survival_chance = self._node_statistics.node_survival_chance(
+                        survival_chance = self._node_statistics.node_survival_change_internal_usage(
                             node_name=node.metadata.name,
-                            time_range_in_minutes=NodeCleaner.NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES,
+                            time_range_in_minutes=NodeMaintainer.NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES,
                         )
                         is_node_unschedulable = node.spec.unschedulable
                         if survival_chance == 0.0:
@@ -140,7 +140,7 @@ class NodeCleaner:
                             node_name = node.metadata.name
                             node_exists = (
                                     self._redis_client.get(
-                                        f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_name}"
+                                        f"{NodeMaintainer.NODE_KEEPALIVE_PREFIX}-{node_name}"
                                     )
                                     is not None
                             )
@@ -224,7 +224,7 @@ class NodeCleaner:
     def get_online_nodes(self) -> Set[str]:
         with self._connected_node_lock:
             last_connected_node_timestamp = self._redis_client.get(
-                NodeCleaner.CONNECTED_NODE_SET_TIME
+                NodeMaintainer.CONNECTED_NODE_SET_TIME
             )
             if (
                     last_connected_node_timestamp is None
@@ -232,7 +232,7 @@ class NodeCleaner:
                     datetime.utcnow()
                     - datetime.fromtimestamp(float(last_connected_node_timestamp))
             ).total_seconds()
-                    > NodeCleaner.READY_NODE_CHECK_PERIOD_IN_SECONDS
+                    > NodeMaintainer.READY_NODE_CHECK_PERIOD_IN_SECONDS
             ):
                 current_node_list = {
                     node.metadata.name
@@ -243,7 +243,7 @@ class NodeCleaner:
                 self._current_node_set.clear()
                 self._current_node_set.update(current_node_list)
                 self._redis_client.set(
-                    NodeCleaner.CONNECTED_NODE_SET_TIME,
+                    NodeMaintainer.CONNECTED_NODE_SET_TIME,
                     str(datetime.utcnow().timestamp()),
                 )
             else:

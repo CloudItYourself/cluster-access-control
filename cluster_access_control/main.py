@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from cluster_access_control.database_usage_statistics.postgres_handling import (
     PostgresHandler,
 )
-from cluster_access_control.node_maintanence.node_cleaner import NodeCleaner
+from cluster_access_control.node_maintanence.node_maintainer import NodeMaintainer
 from cluster_access_control.utilities.response_caching import initialize_fastapi_cache
 from cluster_access_control.web_app.cluster_access import ClusterAccess
 from cluster_access_control.web_app.node import NodeRegistrar
@@ -18,7 +18,7 @@ def main():
     app.on_event("startup")(initialize_fastapi_cache)
     postgres_handler = PostgresHandler()
     statistics_api = NodeStatistics(postgres_handler)
-    node_cleaner = NodeCleaner(postgres_handler, statistics_api)
+    node_cleaner = NodeMaintainer(postgres_handler, statistics_api)
     node_cleaner_thread = threading.Thread(target=node_cleaner.delete_stale_nodes)
     node_cleaner_thread.start()
 

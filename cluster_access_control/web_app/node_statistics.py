@@ -143,8 +143,7 @@ class NodeStatistics:
         except RuntimeWarning:
             raise HTTPException(status_code=400)
 
-    @cache(expire=30)
-    def node_survival_chance(self, node_name: str, time_range_in_minutes: int) -> float:
+    def node_survival_change_internal_usage(self, node_name: str, time_range_in_minutes: int) -> float:
         if time_range_in_minutes >= 1440:
             raise HTTPException(status_code=400)
 
@@ -156,6 +155,10 @@ class NodeStatistics:
             )
         except RuntimeWarning:
             raise HTTPException(status_code=400)
+
+    @cache(expire=30)
+    def node_survival_chance(self, node_name: str, time_range_in_minutes: int) -> float:
+        return self.node_survival_change_internal_usage(node_name, time_range_in_minutes)
 
     @cache(expire=60)
     def get_abrupt_disconnect_count(self, node_name: str) -> float:
