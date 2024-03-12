@@ -118,7 +118,7 @@ class NodeStatistics:
 
             else:
                 # too little time has passes...
-                return 50.0
+                return 0.5
         except RuntimeWarning:
             raise HTTPException(status_code=400)
 
