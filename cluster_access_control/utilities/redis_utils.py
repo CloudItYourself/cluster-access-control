@@ -11,7 +11,5 @@ end
 """
 
 
-def redis_test_and_set(
-    redis_client: redis.Redis, key: str, timeout: int
-) -> bool:
+def redis_test_and_set(redis_client: redis.Redis, key: str, timeout: int) -> bool:
     return redis_client.eval(TEST_AND_SET_LUA_SCRIPT, 1, key, 1, timeout)

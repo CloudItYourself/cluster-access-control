@@ -5,13 +5,17 @@ from datetime import datetime
 from typing import Final, Set
 
 import kubernetes
+from fastapi import HTTPException
 from kubernetes import client
 from kubernetes.client import V1Eviction
 from redis import Redis
 from pottery import Redlock, RedisSet
 
-from cluster_access_control.database_usage_statistics.postgres_handling import PostgresHandler
+from cluster_access_control.database_usage_statistics.postgres_handling import (
+    PostgresHandler,
+)
 from cluster_access_control.utilities.environment import ClusterAccessConfiguration
+from cluster_access_control.web_app.node_statistics import NodeStatistics
 
 
 class NodeCleaner:
@@ -20,13 +24,18 @@ class NodeCleaner:
     CONNECTED_NODE_SET: Final[str] = "connected-nodes-set"
     CONNECTED_NODE_SET_TIME: Final[str] = "connected-nodes-set-time"
     CONNECTED_NODE_LOCK: Final[str] = "connected-nodes-lock"
+
+    NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES: Final[int] = 3
     NODE_TIMEOUT_IN_SECONDS: Final[int] = 3
     READY_NODE_CHECK_PERIOD_IN_SECONDS: Final[int] = 5
 
-    def __init__(self, postgres_handler: PostgresHandler):
+    def __init__(
+            self, postgres_handler: PostgresHandler, node_statistics: NodeStatistics
+    ):
         self._environment = ClusterAccessConfiguration()
         self._redis_client = Redis.from_url(f"{self._environment.get_redis_url()}/0")
         self._postgres_handler = postgres_handler
+        self._node_statistics = node_statistics
 
         self._redlock = Redlock(
             key=self.NODE_CLEANING_LOCK_NAME,
@@ -59,6 +68,11 @@ class NodeCleaner:
                 config_file=self._environment.get_kubernetes_config_file()
             )
         )
+        self._restore_kube_client = client.CoreV1Api(
+            kubernetes.config.new_client_from_config(
+                config_file=self._environment.get_kubernetes_config_file()
+            )
+        )
 
     def update_node_keepalive(self, node_id: str):
         self._redis_client.setex(
@@ -79,6 +93,39 @@ class NodeCleaner:
             print("Killing due to kubernetes failure")
             sys.exit(-1)
 
+    def manage_node_schedulability(self):
+        kube_client = self.get_kube_client()
+        while True:
+            time.sleep(self.NODE_TIMEOUT_IN_SECONDS)
+            try:
+                nodes = kube_client.list_node().items
+                relevant_nodes = [
+                    node
+                    for node in nodes
+                    if "ciy.persistent_node" not in node.metadata.labels
+                ]
+                for node in relevant_nodes:
+                    try:
+                        survival_chance = self._node_statistics.node_survival_chance(
+                            node_name=node.metadata.name,
+                            time_range_in_minutes=NodeCleaner.NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES,
+                        )
+                        is_node_unschedulable = node.spec.unschedulable
+                        if survival_chance == 0.0:
+                            self._thread_pool.submit(
+                                self.cordon_and_drain,
+                                node.metadata.name)
+                        elif is_node_unschedulable:
+                            self._thread_pool.submit(self.uncordon_and_untaint_node, node.metadata.name)
+
+                    except HTTPException as e:
+                        print(
+                            f"Failed to perform scheduling maintenance for node: {node.metadata.name}, {e}"
+                        )
+
+            except Exception as e:  # TODO IMPROVE ME
+                print(f"Failed to perform scheduling maintenance: {e}")
+
     def delete_stale_nodes(self):
         stale_node_deletion_client = self.get_kube_client()
 
@@ -92,10 +139,10 @@ class NodeCleaner:
                         if "ciy.persistent_node" not in node.metadata.labels:
                             node_name = node.metadata.name
                             node_exists = (
-                                self._redis_client.get(
-                                    f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_name}"
-                                )
-                                is not None
+                                    self._redis_client.get(
+                                        f"{NodeCleaner.NODE_KEEPALIVE_PREFIX}-{node_name}"
+                                    )
+                                    is not None
                             )
 
                             if not node_exists:
@@ -103,7 +150,9 @@ class NodeCleaner:
                                     grace_period_nodes.add(node_name)
                                 else:
                                     print("Deleting node due to grace period expiry")
-                                    self._postgres_handler.add_abrupt_disconnect_to_node(node_name)
+                                    self._postgres_handler.add_abrupt_disconnect_to_node(
+                                        node_name
+                                    )
                                     self._thread_pool.submit(
                                         self.clean_up_node,
                                         node.metadata.name,
@@ -117,6 +166,15 @@ class NodeCleaner:
 
             except Exception as e:  # TODO IMPROVE ME
                 print(f"Failed to clean up nodes.. error: {e}")
+
+    def uncordon_and_untaint_node(self, node_name: str):
+        try:
+            self._restore_kube_client.patch_node(
+                node_name,
+                client.V1Node(spec=client.V1NodeSpec(unschedulable=False, taints=[]))
+            )
+        except Exception as e:
+            print(f"Error! failed to uncordon a node, node_name: {node_name}, error: {e}")
 
     def cordon_and_drain(self, node_name: str):
         body = {
@@ -133,7 +191,7 @@ class NodeCleaner:
             pod
             for pod in pods
             if not pod.metadata.owner_references
-            or pod.metadata.owner_references[0].kind != "DaemonSet"
+               or pod.metadata.owner_references[0].kind != "DaemonSet"
         ]
 
         for pod in non_daemonset_pods:
@@ -169,12 +227,12 @@ class NodeCleaner:
                 NodeCleaner.CONNECTED_NODE_SET_TIME
             )
             if (
-                last_connected_node_timestamp is None
-                or (
+                    last_connected_node_timestamp is None
+                    or (
                     datetime.utcnow()
                     - datetime.fromtimestamp(float(last_connected_node_timestamp))
-                ).total_seconds()
-                > NodeCleaner.READY_NODE_CHECK_PERIOD_IN_SECONDS
+            ).total_seconds()
+                    > NodeCleaner.READY_NODE_CHECK_PERIOD_IN_SECONDS
             ):
                 current_node_list = {
                     node.metadata.name
