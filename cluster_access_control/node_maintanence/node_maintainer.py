@@ -112,10 +112,14 @@ class NodeMaintainer:
                         )
                         is_node_unschedulable = node.spec.unschedulable
                         if survival_chance == 0.0:
+                            print(f"Cordoning node: {node.metadata.name} due to 0 percent change of being alive for the next"
+                                  f" {NodeMaintainer.NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES} minutes")
                             self._thread_pool.submit(
                                 self.cordon_and_drain,
                                 node.metadata.name)
                         elif is_node_unschedulable:
+                            print(f"Uncordoning node {node.metadata.name}")
+
                             self._thread_pool.submit(self.uncordon_and_untaint_node, node.metadata.name)
 
                     except HTTPException as e:
