@@ -185,7 +185,7 @@ class NodeStatistics:
         ):  # each abruption is a penalty of one hour
             return 0.0
         else:
-            return min(
+            return max(
                 0.0,
                 1.0
                 - (
