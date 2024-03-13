@@ -151,5 +151,5 @@ class NodeStatistics:
                 hours=abruption_count) < node_registration_time:  # each abruption is a penalty of one hour
             return 0.0
         else:
-            return 1.0 - (abruption_count * NodeStatistics.SECONDS_IN_HOUR / (
-                        current_time - node_registration_time).seconds)
+            return min(0.0, 1.0 - (abruption_count * NodeStatistics.SECONDS_IN_HOUR / (
+                        current_time - node_registration_time).total_seconds()))
