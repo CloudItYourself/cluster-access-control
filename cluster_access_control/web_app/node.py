@@ -7,7 +7,7 @@ from redis.client import Redis
 from cluster_access_control.database_usage_statistics.postgres_handling import (
     PostgresHandler,
 )
-from cluster_access_control.node_cleaner.node_cleaner import NodeCleaner
+from cluster_access_control.node_maintanence.node_maintainer import NodeMaintainer
 
 from fastapi import APIRouter
 from starlette.exceptions import HTTPException
@@ -22,7 +22,7 @@ from cluster_access_control.utilities.redis_utils import redis_test_and_set
 class NodeRegistrar:
     NODE_REGISTER_COOLDOWN_IN_SECONDS: Final[int] = 10
 
-    def __init__(self, node_cleaner: NodeCleaner, postgres_handler: PostgresHandler):
+    def __init__(self, node_cleaner: NodeMaintainer, postgres_handler: PostgresHandler):
         self.router = APIRouter()
         self._node_cleaner = node_cleaner
         self._postgres_handler = postgres_handler
