@@ -104,11 +104,11 @@ class NodeStatistics:
 
                 current_chance = 1.0
                 for day, actual_checkins in check_in_times.items():
-                    for check_in in actual_checkins:
+                    for check_in in actual_checkins[1:]: # we ignore the first value since this might be updated right now
                         if int(check_in[1]) > expected_check_in_times:
                             raise HTTPException(
                                 status_code=500,
-                                detail="check_in_count > expected_check_in_times",
+                                detail=f"check_in_count={int(check_in[1])} > expected_check_in_times={expected_check_in_times}",
                             )
                         current_chance *= int(check_in[1]) / expected_check_in_times
                 return current_chance
@@ -124,11 +124,11 @@ class NodeStatistics:
                 chances_dict = []
                 for day, actual_checkins in check_in_times.items():
                     check_in_change_in_day = 1.0
-                    for check_in in actual_checkins:
+                    for check_in in actual_checkins[1:]: # we ignore the first value since this might be updated right now
                         if int(check_in[1]) > expected_check_in_times:
                             raise HTTPException(
                                 status_code=500,
-                                detail="check_in_count > expected_check_in_times",
+                                detail=f"check_in_count={int(check_in[1])} > expected_check_in_times={expected_check_in_times}",
                             )
                         check_in_change_in_day *= (
                             int(check_in[1]) / expected_check_in_times
