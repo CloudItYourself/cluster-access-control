@@ -229,7 +229,7 @@ class NodeMaintainer:
             self.cordon_and_drain(node_name)
         else:  # ungraceful shutdown
             self.taint_node(node_name)
-        self._deletion_kube_client.delete_node(name=node_name)
+        #self._deletion_kube_client.delete_node(name=node_name)
 
     def get_online_nodes(self) -> Set[str]:
         with self._connected_node_lock:
