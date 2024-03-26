@@ -187,52 +187,49 @@ class NodeMaintainer:
             )
 
     def cordon_and_drain(self, node_name: str):
-        # body = {
-        #     "spec": {
-        #         "unschedulable": True,
-        #     }
-        # }
-        # self._deletion_kube_client.patch_node(node_name, body)
-        # pods = self._deletion_kube_client.list_pod_for_all_namespaces(
-        #     field_selector="spec.nodeName={}".format(node_name)
-        # ).items
-        #
-        # non_daemonset_pods = [
-        #     pod
-        #     for pod in pods
-        #     if not pod.metadata.owner_references
-        #     or pod.metadata.owner_references[0].kind != "DaemonSet"
-        # ]
-        #
-        # for pod in non_daemonset_pods:
-        #     eviction = V1Eviction(metadata=client.V1ObjectMeta(name=pod.metadata.name))
-        #     self._deletion_kube_client.create_namespaced_pod_eviction(
-        #         name=pod.metadata.name, namespace=pod.metadata.namespace, body=eviction
-        #     )
-        pass
+        body = {
+            "spec": {
+                "unschedulable": True,
+            }
+        }
+        self._deletion_kube_client.patch_node(node_name, body)
+        pods = self._deletion_kube_client.list_pod_for_all_namespaces(
+            field_selector="spec.nodeName={}".format(node_name)
+        ).items
+
+        non_daemonset_pods = [
+            pod
+            for pod in pods
+            if not pod.metadata.owner_references
+            or pod.metadata.owner_references[0].kind != "DaemonSet"
+        ]
+
+        for pod in non_daemonset_pods:
+            eviction = V1Eviction(metadata=client.V1ObjectMeta(name=pod.metadata.name))
+            self._deletion_kube_client.create_namespaced_pod_eviction(
+                name=pod.metadata.name, namespace=pod.metadata.namespace, body=eviction
+            )
 
     def taint_node(self, node_name: str):
-        # body = {
-        #     "spec": {
-        #         "taints": [
-        #             {
-        #                 "effect": "NoExecute",
-        #                 "key": "node.kubernetes.io/out-of-service",
-        #                 "value": "nodeshutdown",
-        #             }
-        #         ]
-        #     }
-        # }
-        # self._deletion_kube_client.patch_node(node_name, body)
-        pass
+        body = {
+            "spec": {
+                "taints": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/out-of-service",
+                        "value": "nodeshutdown",
+                    }
+                ]
+            }
+        }
+        self._deletion_kube_client.patch_node(node_name, body)
 
     def clean_up_node(self, node_name: str, node_ready: bool):
-        # if node_ready:  # graceful shutdown
-        #     self.cordon_and_drain(node_name)
-        # else:  # ungraceful shutdown
-        #     self.taint_node(node_name)
-        # self._deletion_kube_client.delete_node(name=node_name)
-        pass
+        if node_ready:  # graceful shutdown
+            self.cordon_and_drain(node_name)
+        else:  # ungraceful shutdown
+            self.taint_node(node_name)
+        self._deletion_kube_client.delete_node(name=node_name)
 
     def get_online_nodes(self) -> Set[str]:
         with self._connected_node_lock:
@@ -250,6 +247,7 @@ class NodeMaintainer:
                 current_node_list = {
                     node.metadata.name
                     for node in self._kube_client.list_node().items
+                    if node.status.conditions[-1].type == "Ready"
                 }
 
                 self._current_node_set.clear()
