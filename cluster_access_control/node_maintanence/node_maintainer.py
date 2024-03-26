@@ -247,7 +247,6 @@ class NodeMaintainer:
                 current_node_list = {
                     node.metadata.name
                     for node in self._kube_client.list_node().items
-                    if node.status.conditions[-1].type == "Ready"
                 }
 
                 self._current_node_set.clear()
