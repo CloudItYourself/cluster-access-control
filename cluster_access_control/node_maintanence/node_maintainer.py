@@ -26,7 +26,7 @@ class NodeMaintainer:
     CONNECTED_NODE_LOCK: Final[str] = "connected-nodes-lock"
 
     NODE_MINIMAL_SURVIVABILITY_TIME_IN_MINUTES: Final[int] = 3
-    NODE_TIMEOUT_IN_SECONDS: Final[int] = 10
+    NODE_TIMEOUT_IN_SECONDS: Final[int] = 3
     READY_NODE_CHECK_PERIOD_IN_SECONDS: Final[int] = 5
 
     def __init__(
